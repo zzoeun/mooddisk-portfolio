@@ -1,0 +1,48 @@
+{
+  "cli": {
+    "version": ">= 16.18.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:8080",
+        "EXPO_PUBLIC_GOOGLE_PLACES_API_KEY_ANDROID": "REPLACE_ME"
+      }
+    },
+    "dev-ios": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:8080"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.example.com",
+        "EXPO_PUBLIC_GOOGLE_PLACES_API_KEY_ANDROID": "REPLACE_ME"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.example.com",
+        "EXPO_PUBLIC_GOOGLE_PLACES_API_KEY_ANDROID": "REPLACE_ME"
+      },
+      "prebuildCommand": "cd ../../.. && yarn build:packages"
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

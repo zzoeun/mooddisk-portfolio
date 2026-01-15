@@ -1,0 +1,77 @@
+# Frontend Architecture Guidelines
+
+## Project Structure
+
+### Frontend (Web) Structure
+
+- **Components**: `src/components` - Reusable UI components
+- **Pages**: `src/pages` - Page-level components
+- **Layout**: `src/layout` - Layout components (desktop/mobile)
+- **Context**: `src/context` - React context providers
+- **Features**: `src/features` - Feature-specific components
+- **Hooks**: `src/hooks` - Custom React hooks (웹 전용)
+
+### Shared Packages (`packages/`)
+
+- **@mooddisk/types**: 공통 타입 정의
+- **@mooddisk/api**: API 클라이언트
+- **@mooddisk/utils**: 유틸리티 함수
+- **@mooddisk/mappers**: 데이터 매핑
+- **@mooddisk/hooks**: 공통 커스텀 훅
+
+## Key Files
+
+- **App Entry**: [App.tsx](mdc:src/main/frontend/src/App.tsx)
+- **Router**: [AppRouter.tsx](mdc:src/main/frontend/src/AppRouter.tsx)
+- **Auth Context**: [AuthContext.tsx](mdc:src/main/frontend/src/context/AuthContext.tsx)
+- **User Context**: [UserContext.tsx](mdc:src/main/frontend/src/context/UserContext.tsx)
+
+## Technology Stack
+
+- **Framework**: React 19 with TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: Custom components with Tailwind CSS
+- **State Management**: React Context + useState/useReducer
+- **Data Fetching**: Axios with custom hooks
+- **Routing**: React Router 6
+- **Forms**: Controlled components with validation
+- **Error Handling**: Custom error handler with modals
+
+## Component Guidelines
+
+- Use functional components with hooks
+- Implement proper TypeScript types
+- Use composition over inheritance
+- Implement responsive design (desktop/mobile)
+- Use proper error boundaries
+- Implement loading states
+- Use proper accessibility attributes
+
+## State Management
+
+- Use React Context for global state
+- Use useState/useReducer for local state
+- Use custom hooks for API state management
+- Implement proper error handling with useErrorHandler
+- Use optimistic updates where appropriate
+
+## Styling Guidelines
+
+- Use Tailwind CSS for utility classes
+- Implement responsive design patterns
+- Use consistent design tokens
+- Follow design system consistency
+
+## API Integration
+
+- Use axios for HTTP requests
+- Implement proper error handling with useErrorHandler
+- Use custom hooks for API state management
+- Implement proper loading states
+- Use TypeScript for API types
+- Use mappers for API to domain type conversion
+  description:
+  globs:
+  alwaysApply: false
+
+---

@@ -1,0 +1,273 @@
+# Shared Packages Guidelines
+
+## Package Development Rules
+
+### Type Safety
+
+- 모든 패키지는 TypeScript로 작성
+- 웹 환경: `dist/` 폴더에 컴파일된 결과물 저장
+- 모바일 환경: TypeScript 파일 직접 사용 (Metro 번들러가 컴파일)
+- `.d.ts` 파일로 타입 정의 제공
+
+### Export Strategy
+
+- **웹**: `index.ts`에서 모든 public API export
+- **모바일**: `index.native.ts`에서 모든 public API export
+- 내부 구현은 export하지 않음
+- 플랫폼별 어댑터 패턴 사용
+
+### Version Management
+
+- 패키지 버전은 `1.0.0` 형식 사용
+- breaking change 시 major 버전 업
+- 의존성은 `file:../` 경로 사용
+
+## Package-Specific Guidelines
+
+### @mooddisk/types
+
+- **목적**: 공통 타입 정의
+- **의존성**: 없음 (기본 패키지)
+- **사용처**: 모든 패키지와 앱
+- **구조**:
+  - `src/api/`: API 응답 타입들 (ApiChallenge, ApiDiary, ApiCounseling, ApiUser)
+  - `src/domain/`: 도메인 타입들 (ChallengeEntry, DiaryEntry, CounselingEntry, UserEntry)
+  - `src/index.ts`: 모든 타입 통합 export
+- **규칙**:
+  - API 응답 타입 정의
+  - 도메인 모델 타입 정의
+  - 공통 인터페이스 정의
+  - 타입과 도메인 타입 명확히 분리
+
+### @mooddisk/utils
+
+- **목적**: 유틸리티 함수
+- **의존성**: `@mooddisk/types`
+- **사용처**: 모든 패키지와 앱
+- **규칙**:
+  - 순수 함수만 포함
+  - 플랫폼별 로직 분리
+  - 테스트 가능한 함수
+
+### @mooddisk/mappers
+
+- **목적**: 데이터 매핑
+- **의존성**: `@mooddisk/types`
+- **사용처**: `@mooddisk/api`, 앱들
+- **구조**:
+  - `src/`: TypeScript 소스 파일들
+  - `src/index.ts`: 모든 매퍼 함수 통합 export
+  - `dist/`: 컴파일된 JavaScript 파일들
+- **규칙**:
+  - API 응답을 도메인 모델로 변환
+  - 일관된 매핑 로직
+  - 에러 처리 포함
+  - 매퍼 함수명: `mapApi[Type]To[Domain]Entry` 형식
+
+### @mooddisk/api
+
+- **목적**: API 클라이언트
+- **의존성**: `@mooddisk/types`, `@mooddisk/mappers`
+- **사용처**: 앱들
+- **규칙**:
+  - HTTP 클라이언트 추상화
+  - 에러 처리 통합
+  - 타입 안전성 보장
+  - **웹**: `@mooddisk/api` (dist 파일 사용)
+  - **모바일**: `@mooddisk/api/index.native` (TypeScript 직접 사용)
+  - React Native에서 `navigator.origin` 오류 방지
+
+### @mooddisk/hooks
+
+- **목적**: 커스텀 훅
+- **의존성**: `@mooddisk/types`, `@mooddisk/api`
+- **사용처**: 앱들
+- **규칙**:
+  - React 훅만 포함
+  - 비즈니스 로직 캡슐화
+  - 플랫폼별 어댑터 사용
+
+## Platform Adapters
+
+### Storage Adapters
+
+```typescript
+// 웹: localStorage
+// 모바일: AsyncStorage
+interface StorageAdapter {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
+}
+```
+
+### API Adapters
+
+```typescript
+// 웹: axios
+// 모바일: fetch + 네이티브 모듈
+interface ApiAdapter {
+  get<T>(url: string): Promise<T>;
+  post<T>(url: string, data: any): Promise<T>;
+  put<T>(url: string, data: any): Promise<T>;
+  delete<T>(url: string): Promise<T>;
+}
+```
+
+### Navigation Adapters
+
+```typescript
+// 웹: React Router
+// 모바일: React Navigation
+interface NavigationAdapter {
+  navigate(route: string, params?: any): void;
+  goBack(): void;
+  reset(route: string): void;
+}
+```
+
+## Testing Strategy
+
+### Unit Tests
+
+- 각 패키지별 단위 테스트
+- Mock을 사용한 의존성 분리
+- 100% 코드 커버리지 목표
+
+### Integration Tests
+
+- 패키지 간 통합 테스트
+- 실제 API 호출 테스트
+- 플랫폼별 어댑터 테스트
+
+### E2E Tests
+
+- 앱 레벨에서 전체 플로우 테스트
+- 실제 사용자 시나리오 테스트
+
+## Package Development Workflow
+
+### 1. 새 패키지 생성
+
+```bash
+# 패키지 디렉토리 생성
+mkdir packages/new-package
+cd packages/new-package
+
+# package.json 생성
+yarn init -y
+
+# tsconfig.json 생성
+# 소스 코드 작성
+# index.ts에서 export
+```
+
+### 2. 패키지 구조 예시
+
+#### Types 패키지 구조
+
+```
+packages/types/
+├── src/
+│   ├── api/           # API 응답 타입들
+│   │   ├── challenge.ts
+│   │   ├── diary.ts
+│   │   ├── counseling.ts
+│   │   └── user.ts
+│   ├── domain/        # 도메인 타입들
+│   │   ├── challenge.ts
+│   │   ├── diary.ts
+│   │   ├── counseling.ts
+│   │   └── user.ts
+│   └── index.ts       # 모든 타입 통합 export
+├── dist/              # 컴파일된 타입 정의 파일들
+├── package.json
+└── tsconfig.json
+```
+
+#### Mappers 패키지 구조
+
+```
+packages/mappers/
+├── src/
+│   ├── challengeMapper.ts
+│   ├── diaryMapper.ts
+│   ├── counselingMapper.ts
+│   ├── userMapper.ts
+│   └── index.ts       # 모든 매퍼 함수 통합 export
+├── dist/              # 컴파일된 JavaScript 파일들
+├── package.json
+└── tsconfig.json
+```
+
+### 2. 패키지 수정
+
+```bash
+# 패키지 빌드
+yarn workspace @mooddisk/package-name build
+
+# 개발 모드 (자동 빌드)
+yarn dev:packages
+
+# 의존하는 앱에서 테스트
+yarn dev:frontend  # 웹 (패키지 자동 빌드)
+yarn dev:mobile    # 모바일
+```
+
+### 3. 패키지 배포
+
+```bash
+# 모든 패키지 빌드
+yarn build:packages
+
+# 앱 빌드
+yarn build:frontend
+yarn build:mobile
+```
+
+## Common Patterns
+
+### Error Handling
+
+```typescript
+// 공통 에러 타입
+export interface AppError {
+  code: string;
+  message: string;
+  details?: any;
+}
+
+// 에러 처리 유틸리티
+export const handleError = (error: unknown): AppError => {
+  // 에러 처리 로직
+};
+```
+
+### Loading States
+
+```typescript
+// 공통 로딩 상태
+export interface LoadingState {
+  isLoading: boolean;
+  error: AppError | null;
+  data: T | null;
+}
+```
+
+### API Response
+
+```typescript
+// 공통 API 응답 타입
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+  error?: AppError;
+}
+```
+
+description: 공유 패키지 개발 가이드라인
+globs:
+alwaysApply: false
+
+---

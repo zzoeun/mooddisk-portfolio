@@ -1,0 +1,136 @@
+name: Database Backup
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # 매일 새벽 2시 (UTC) - 한국시간 오전 11시
+  workflow_dispatch: # 수동 실행 가능
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Install MySQL client and network tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client netcat-openbsd
+
+      - name: Test database connection
+        run: |
+          echo "🔍 데이터베이스 연결 테스트..."
+          echo "📋 연결 정보 확인 (일부만 표시):"
+          echo "  - Host: ${{ secrets.DB_URL }}"
+          echo "  - Port: ${{ secrets.DB_PORT }}"
+          echo "  - User: ${{ secrets.DB_USER }}"
+          echo "  - Database: ${{ secrets.DB }}"
+
+          # 네트워크 연결 테스트 (nc를 사용하여 포트 확인)
+          echo "🌐 네트워크 연결 테스트..."
+          if timeout 5 nc -zv "${{ secrets.DB_URL }}" "${{ secrets.DB_PORT }}" 2>&1; then
+            echo "✅ 포트 연결 가능"
+          else
+            echo "❌ 포트 연결 실패"
+            echo ""
+            echo "⚠️ 연결 실패 가능한 원인:"
+            echo "  1. 데이터베이스가 private IP/VPC 내부에 있어 외부 접근 불가"
+            echo "  2. AWS RDS 보안 그룹에서 GitHub Actions IP를 허용하지 않음"
+            echo "  3. 방화벽에서 포트 ${{ secrets.DB_PORT }}가 차단됨"
+            echo "  4. 잘못된 DB_URL 또는 DB_PORT 설정"
+            echo ""
+            echo "💡 해결 방법:"
+            echo "  - AWS RDS인 경우: 보안 그룹 인바운드 규칙에 GitHub Actions IP 추가"
+            echo "  - VPC 내부 DB인 경우: VPN/SSH 터널 또는 프록시 사용"
+            echo "  - secrets의 DB_URL, DB_PORT 확인"
+            exit 1
+          fi
+
+          export MYSQL_PWD="${{ secrets.DB_PASSWORD }}"
+
+          # 연결 타임아웃 설정 (10초)
+          echo "🔌 MySQL 연결 시도..."
+          mysql \
+            --host="${{ secrets.DB_URL }}" \
+            --port="${{ secrets.DB_PORT }}" \
+            --user="${{ secrets.DB_USER }}" \
+            --connect-timeout=10 \
+            --execute="SELECT 1;" \
+            "${{ secrets.DB }}"
+
+          echo "✅ 데이터베이스 연결 성공"
+
+      - name: Create backup
+        run: |
+          DATE=$(date +%Y%m%d_%H%M%S)
+          BACKUP_FILE="mooddisk_backup_$DATE.sql"
+          S3_BUCKET="${{ secrets.AWS_S3_BACKUP_BUCKET }}"
+
+          echo "🚀 데이터베이스 백업 시작..."
+          echo "📋 연결 정보 확인:"
+          echo "  - Host: ${{ secrets.DB_URL }}"
+          echo "  - Port: ${{ secrets.DB_PORT }}"
+          echo "  - User: ${{ secrets.DB_USER }}"
+          echo "  - Database: ${{ secrets.DB }}"
+
+          # 환경 변수로 설정하여 보안 강화
+          export MYSQL_PWD="${{ secrets.DB_PASSWORD }}"
+
+          # mysqldump 명령어 실행
+          mysqldump \
+            --host="${{ secrets.DB_URL }}" \
+            --port="${{ secrets.DB_PORT }}" \
+            --user="${{ secrets.DB_USER }}" \
+            --connect-timeout=10 \
+            --single-transaction \
+            --routines \
+            --triggers \
+            "${{ secrets.DB }}" > "$BACKUP_FILE"
+
+          # 백업 파일 생성 확인
+          if [ ! -f "$BACKUP_FILE" ] || [ ! -s "$BACKUP_FILE" ]; then
+            echo "❌ 백업 파일 생성 실패"
+            exit 1
+          fi
+
+          echo "📦 S3에 업로드 중..."
+          aws s3 cp "$BACKUP_FILE" "s3://$S3_BUCKET/database/"
+
+          echo "✅ 백업 완료: $BACKUP_FILE"
+          echo "📍 S3 위치: s3://$S3_BUCKET/database/$BACKUP_FILE"
+
+          # 백업 파일 크기 확인
+          ls -la "$BACKUP_FILE"
+
+      - name: Cleanup old backups
+        run: |
+          echo "🧹 오래된 백업 파일 정리 시작..."
+
+          S3_BUCKET="${{ secrets.AWS_S3_BACKUP_BUCKET }}"
+          RETENTION_DAYS="30"  # 30일 보존 정책
+
+          # 설정된 기간 이상 된 백업 파일 삭제
+          aws s3 ls s3://$S3_BUCKET/database/ --recursive | while read -r line; do
+            createDate=$(echo $line | awk '{print $1" "$2}')
+            createDate=$(date -d"$createDate" +%s)
+            olderThan=$(date -d"$RETENTION_DAYS days ago" +%s)
+            fileName=$(echo $line | awk '{print $4}')
+            
+            if [[ $createDate -lt $olderThan ]]; then
+              echo "🗑️ 삭제 대상: $fileName"
+              aws s3 rm s3://$S3_BUCKET/database/$fileName
+            fi
+          done
+
+          echo "✅ 백업 파일 정리 완료"
+
+          # 현재 백업 파일 목록 확인
+          echo "📋 현재 백업 파일 목록:"
+          aws s3 ls s3://$S3_BUCKET/database/ --human-readable

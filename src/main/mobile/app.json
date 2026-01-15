@@ -1,0 +1,117 @@
+{
+  "expo": {
+    "name": "mood.disk",
+    "slug": "mobile",
+    "version": "1.0.2",
+    "orientation": "default",
+    "icon": "./assets/images/icon.png",
+    "scheme": "mooddisk",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mooddisk.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIStatusBarStyle": "UIStatusBarStyleLightContent",
+        "UIViewControllerBasedStatusBarAppearance": false,
+        "NSPhotoLibraryUsageDescription": "mood.disk needs access to your photos to set your profile picture and to attach images to your diary entries.",
+        "NSLocationWhenInUseUsageDescription": "mood.disk needs access to your location to record where you wrote your travel diary entries.",
+        "CFBundleURLTypes": [
+          { "CFBundleURLSchemes": ["mooddisk"] },
+          { "CFBundleURLSchemes": ["com.mooddisk.mobile"] },
+          { "CFBundleURLSchemes": ["kakaoYOUR_KAKAO_APP_KEY"] },
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.YOUR_IOS_CLIENT_ID"
+            ]
+          }
+        ],
+        "LSApplicationQueriesSchemes": ["kakaokompassauth", "kakaolink"]
+      },
+      "entitlements": {
+        "com.apple.developer.applesignin": ["Default"]
+      }
+    },
+    "android": {
+      "package": "com.mooddisk.mobile",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "category": ["BROWSABLE", "DEFAULT"],
+          "data": [
+            {
+              "scheme": "mooddisk",
+              "host": "oauth2redirect",
+              "pathPrefix": "/google"
+            }
+          ]
+        }
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      [
+        "@react-native-seoul/kakao-login",
+        {
+          "kakaoAppKey": "YOUR_KAKAO_APP_KEY",
+          "kotlinVersion": "1.9.25"
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.YOUR_IOS_CLIENT_ID"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraMavenRepos": [
+              "https://devrepo.kakao.com/nexus/content/groups/public/"
+            ],
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "gradlePluginVersion": "8.5.2",
+            "kotlinVersion": "1.9.25",
+            "javaVersion": "17",
+            "minSdkVersion": 23,
+            "kspEnabled": false
+          },
+          "ios": {
+            "deploymentTarget": "13.4"
+          }
+        }
+      ],
+      "expo-font",
+      "expo-router"
+    ],
+    "extra": {
+      "router": {},
+      "apiBaseUrl": "https://api.example.com",
+      "googleWebClientId": "YOUR_GOOGLE_WEB_CLIENT_ID",
+      "googleIosClientId": "YOUR_GOOGLE_IOS_CLIENT_ID",
+      "googleAndroidClientId": "YOUR_GOOGLE_ANDROID_CLIENT_ID",
+      "googleIosRedirectUri": "com.googleusercontent.apps.YOUR_GOOGLE_IOS_CLIENT_ID:/oauth2redirect/google",
+      "googleAndroidRedirectUri": "com.googleusercontent.apps.YOUR_GOOGLE_ANDROID_CLIENT_ID:/oauth2redirect/google",
+      "kakaoNativeAppKey": "YOUR_KAKAO_APP_KEY",
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
+    },
+    "runtimeVersion": "1.0.2",
+    "updates": {
+      "url": "https://u.expo.dev/00000000-0000-0000-0000-000000000000"
+    }
+  }
+}

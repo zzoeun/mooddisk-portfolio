@@ -1,0 +1,95 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/main/frontend/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/main/frontend/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: "./yarn.lock"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --check-files
+
+      - name: Build packages
+        run: yarn build:packages
+
+      - name: Clean and reinstall frontend dependencies
+        run: |
+          cd src/main/frontend
+          rm -rf node_modules
+          yarn install
+
+      - name: Sync version to .env
+        run: yarn version:sync
+
+      - name: Create .env file
+        run: |
+          echo "REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL }}" >> src/main/frontend/.env
+          echo "REACT_APP_KAKAO_REST_APP_KEY=${{ secrets.REACT_APP_KAKAO_REST_APP_KEY }}" >> src/main/frontend/.env
+          echo "REACT_APP_GOOGLE_AUTH_CLIENT_ID=${{ secrets.REACT_APP_GOOGLE_AUTH_CLIENT_ID }}" >> src/main/frontend/.env
+
+      - name: Build project
+        env:
+          CI: false
+        run: yarn workspace frontend build
+
+      - name: Debug Info Before Deploy
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "✅ 현재 브랜치: ${{ github.ref }}"
+          echo "✅ Build 디렉토리 사이즈:"
+          du -sh src/main/frontend/build/
+          echo "✅ Build 디렉토리 목록:"
+          ls -la src/main/frontend/build/
+          echo "🔥 배포 대상 버킷 이름: ${{ secrets.AWS_S3_BUCKET }}"
+
+      - name: Deploy to S3
+        if: github.ref == 'refs/heads/main'
+        uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --delete --debug
+        env:
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }} # mooddisk-assets
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: "ap-northeast-2"
+          SOURCE_DIR: "./src/main/frontend/build"
+
+      - name: Debug Info After Deploy
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "✅ S3 버킷에 업로드 완료! 현재 S3 파일 목록:"
+          aws s3 ls s3://${{ secrets.AWS_S3_BUCKET }} --recursive
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: "ap-northeast-2"
+
+      - name: Invalidate CloudFront Cache
+        if: github.ref == 'refs/heads/main'
+        uses: chetan/invalidate-cloudfront-action@v2
+        env:
+          DISTRIBUTION: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+          PATHS: |
+            /*
+          AWS_REGION: "ap-northeast-2"
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

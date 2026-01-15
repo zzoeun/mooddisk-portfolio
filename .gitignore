@@ -1,0 +1,111 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### .env ###
+.env*
+
+### Android keystore ###
+**/*.keystore
+**/debug.keystore
+
+### resource static ###
+/src/main/resources/static/**
+#리액트 관련
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+*/node_modules/*
+/.pnp
+.pnp.js
+
+# testing
+src/main/frontend/coverage
+#
+## production
+src/main/frontend/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Package manager lock files
+package-lock.json
+
+node_modules/
+build/
+.DS_Store
+.env
+
+### Log files ###
+logs/
+test.log
+*.log
+
+### SQL files ###
+src/main/resources/data.sql
+
+### Package build outputs ###
+# Ignore dist in most places
+dist/
+# But keep packages dist (for EAS Build)
+!packages/*/dist/
+*.tsbuildinfo
+
+### Coverage directory ###
+coverage/
+
+### Runtime data ###
+pids
+*.pid
+*.seed
+*.pid.lock
+
+### OS generated files ###
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

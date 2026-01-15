@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/_/husky.sh"
+
+yarn version:sync
+# git add -A  # 자동 스테이징 비활성화
+
+

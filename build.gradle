@@ -1,0 +1,144 @@
+import groovy.json.JsonSlurper
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.4.1'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.astro'
+def versionJsonFile = file("${projectDir}/version.json")
+if (versionJsonFile.exists()) {
+    def parsed = new JsonSlurper().parseText(versionJsonFile.text)
+    version = parsed.version ?: '0.0.1-SNAPSHOT'
+} else {
+    version = '0.0.1-SNAPSHOT'
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter'
+	implementation 'org.springframework.boot:spring-boot-configuration-processor'
+
+	implementation 'org.springframework.boot:spring-boot-starter-cache'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	//oauth
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'commons-validator:commons-validator:1.7'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	compileOnly 'org.projectlombok:lombok'
+	runtimeOnly 'com.h2database:h2'
+	implementation 'org.mariadb.jdbc:mariadb-java-client:3.1.0'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	
+	implementation 'io.github.cdimascio:dotenv-java:3.1.0' // env 사용
+	// Springdoc OpenAPI
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
+	//Jwt
+	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+	implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
+	implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+	// Amazon S3
+	implementation 'io.awspring.cloud:spring-cloud-aws-starter:3.1.1' // Spring Boot와 AWS의 통합을 도와주는 라이브러리
+	implementation 'software.amazon.awssdk:s3:2.21.29' // Java 어플리케이션에서 Amazon S3(Simple Storage Service) 버킷에 접근할 수 있게 해주는 라이브러리
+	// Amazon Secrets Manager
+	implementation 'software.amazon.awssdk:secretsmanager:2.21.29' // AWS Secrets Manager 접근을 위한 라이브러리
+	// https://mvnrepository.com/artifact/org.ahocorasick/ahocorasick
+	implementation 'org.ahocorasick:ahocorasick:0.6.3'
+	implementation("com.hankcs:aho-corasick-double-array-trie:1.2.2")
+	
+	// Rate Limiting (Bucket4j)
+	implementation 'com.bucket4j:bucket4j-core:8.10.1'
+
+	// Timezone calculation from coordinates (for travel logs)
+	implementation 'us.dustinj.timezonemap:timezonemap:4.5'
+
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+/**
+ * 아래로 추가된 내용
+ SpringBoot (Back-End)와 React (Front-End)를 하나의 패키지로 만들자
+ SpringBoot 빌드될 때 React가 먼저 빌드되고,
+ 결과물을 SpringBoot 빌드 결과물에 포함시킨다는 내용
+
+ 빌드하기(둘 다 실행시킬 필요 없이 서버만 키면 locahost:3030 프론트엔드 내용 같이 나오도록!)
+ = localhost:8080만 들어가면 내용 뜨도록
+ * */
+
+def frontendDir = "$projectDir/src/main/frontend"
+
+sourceSets {
+	main {
+		resources { srcDirs = ["$projectDir/src/main/resources"]
+		}
+	}
+}
+
+processResources { dependsOn "copyReactBuildFiles" }
+
+task buildPackages(type: Exec) {
+	workingDir "$projectDir"
+	group = BasePlugin.BUILD_GROUP
+	commandLine "yarn", "build:packages"
+}
+
+task installReact(type: Exec) {
+	dependsOn "buildPackages"
+	workingDir "$frontendDir"
+	inputs.dir "$frontendDir"
+	group = BasePlugin.BUILD_GROUP
+	commandLine "yarn", "install", "--force"
+}
+
+task buildReact(type: Exec) {
+	dependsOn "installReact"
+	workingDir "$frontendDir"
+	inputs.dir "$frontendDir"
+	group = BasePlugin.BUILD_GROUP
+	commandLine "yarn", "build"
+}
+
+task copyReactBuildFiles(type: Copy) {
+	dependsOn "buildReact"
+	from "$frontendDir/build"
+	into "$projectDir/src/main/resources/static"
+}
+
+springBoot {
+	mainClass = 'com.astro.mood.MoodApplication'
+}
+
+bootRun {
+	dependsOn 'copyReactBuildFiles'
+	// 프로파일은 .env 파일의 SPRING_PROFILES_ACTIVE 또는 환경 변수로 설정
+	// 기본값은 prod (명시적으로 dev를 지정하려면 .env에 SPRING_PROFILES_ACTIVE=dev 설정)
+	doFirst {
+		copy {
+			from "$frontendDir/build"
+			into "$projectDir/src/main/resources/static"
+		}
+	}
+}

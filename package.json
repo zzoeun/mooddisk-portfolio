@@ -1,0 +1,36 @@
+{
+  "name": "mooddisk-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "src/main/frontend",
+    "src/main/mobile"
+  ],
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
+  "scripts": {
+    "build:packages": "yarn workspace @mooddisk/types build && yarn workspace @mooddisk/utils build && yarn workspace @mooddisk/mappers build && yarn workspace @mooddisk/api build && yarn workspace @mooddisk/hooks build",
+    "build:packages:watch": "yarn workspace @mooddisk/mappers dev & yarn workspace @mooddisk/api dev & yarn workspace @mooddisk/hooks dev",
+    "build:frontend": "yarn build:packages && yarn workspace frontend build",
+    "build:mobile": "yarn build:packages && yarn workspace mobile build",
+    "start:frontend": "yarn build:packages && yarn workspace frontend start",
+    "start:mobile": "yarn build:packages && yarn workspace mobile start",
+    "dev:frontend": "yarn build:packages:watch & yarn workspace frontend start",
+    "dev:mobile": "yarn workspace mobile start",
+    "dev:packages": "yarn build:packages:watch",
+    "clean": "rm -rf packages/*/dist node_modules src/main/frontend/node_modules src/main/mobile/node_modules",
+    "clean:packages": "rm -rf packages/*/dist",
+    "clean:android": "rm -rf node_modules/expo-modules-core/android/.cxx src/main/mobile/android/.cxx src/main/mobile/android/build src/main/mobile/android/app/build",
+    "version:sync": "ts-node scripts/sync-version.ts",
+    "update-ip": "node scripts/update-ip.js",
+    "prepare": "husky install",
+    "postinstall": "patch-package"
+  },
+  "dependencies": {
+    "expo-linear-gradient": "^15.0.7",
+    "react-native-svg": "^15.13.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "husky": "^9.1.6"
+  }
+}

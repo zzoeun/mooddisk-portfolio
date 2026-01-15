@@ -1,0 +1,921 @@
+# Mobile Architecture Guidelines
+
+## Current Architecture Overview
+
+현재 모바일 앱은 **전통적인 React Native 구조**를 사용하고 있으며, Expo Router 대신 **App.tsx 기반**의 아키텍처를 채택하고 있습니다.
+
+## Architecture Patterns
+
+### 1. App.tsx 기반 구조
+
+```typescript
+// App.tsx - 메인 앱 진입점
+import React, { useRef } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "./context/AuthContext";
+import AppContent from "./AppContent";
+
+const App: React.FC = () => {
+  const queryClientRef = useRef<QueryClient>();
+  if (!queryClientRef.current) {
+    queryClientRef.current = new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 1000 * 60 * 5,
+          gcTime: 1000 * 60 * 30,
+          refetchOnReconnect: true,
+          refetchOnMount: false,
+          refetchOnWindowFocus: false,
+        },
+      },
+    });
+  }
+
+  return (
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClientRef.current}>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
+  );
+};
+
+export default App;
+```
+
+### 2. 컴포넌트 계층 구조
+
+```
+App.tsx (루트)
+├── AppContent (인증 상태 관리)
+│   ├── MainScreen (로그인 후 메인 화면)
+│   │   ├── MainLayout
+│   │   │   ├── Header
+│   │   │   └── Content Area
+│   │   └── TabBar
+│   └── LoginScreen (로그인 화면)
+│       ├── StarField (배경)
+│       ├── Logo & Progress
+│       └── Auth Buttons
+```
+
+### 3. 디렉토리 구조 패턴
+
+#### 컴포넌트 분류
+
+- **`components/common/`**: 재사용 가능한 공통 컴포넌트
+- **`components/features/`**: 특정 기능에 특화된 컴포넌트
+- **`screens/`**: 전체 화면을 담당하는 컴포넌트
+- **`layouts/`**: 레이아웃을 담당하는 컴포넌트
+- **`features/`**: 비즈니스 로직이 포함된 모듈
+
+#### 파일 명명 규칙
+
+```typescript
+// 컴포넌트 파일명: PascalCase
+ActionButton.tsx;
+DiaryCalendar.tsx;
+MainScreen.tsx;
+
+// 유틸리티 파일명: camelCase
+secureStorage.ts;
+challengeUtils.ts;
+
+// 상수 파일명: PascalCase
+Colors.ts;
+queryConfig.ts;
+```
+
+## State Management
+
+### 1. React Context 패턴
+
+```typescript
+// context/AuthContext.tsx
+import React, { createContext, useContext, useState, useEffect } from "react";
+
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  token: string | null;
+  login: (userData: User, token: string) => Promise<void>;
+  logout: () => Promise<void>;
+  updateToken: (token: string) => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const login = async (userData: User, authToken: string) => {
+    // 로그인 로직
+    setUser(userData);
+    setToken(authToken);
+    setIsAuthenticated(true);
+  };
+
+  const logout = async () => {
+    // 로그아웃 로직
+    setUser(null);
+    setToken(null);
+    setIsAuthenticated(false);
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        token,
+        login,
+        logout,
+        updateToken: setToken,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
+```
+
+### 2. React Query 중앙관리 패턴
+
+#### App.tsx에서 QueryClient 중앙 관리
+
+```typescript
+// App.tsx - QueryClient 중앙 설정
+import React, { useRef } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "./context/AuthContext";
+import AppContent from "./AppContent";
+
+const App: React.FC = () => {
+  const queryClientRef = useRef<QueryClient>();
+  if (!queryClientRef.current) {
+    queryClientRef.current = new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 1000 * 60 * 5, // 5분
+          gcTime: 1000 * 60 * 30, // 30분
+          refetchOnReconnect: true,
+          refetchOnMount: false,
+          refetchOnWindowFocus: false,
+          retry: (failureCount, error) => {
+            // 네트워크 오류가 아닌 경우 재시도하지 않음
+            if (error?.status === 401 || error?.status === 403) {
+              return false;
+            }
+            return failureCount < 3;
+          },
+        },
+        mutations: {
+          retry: false, // 뮤테이션은 재시도하지 않음
+        },
+      },
+    });
+  }
+
+  return (
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClientRef.current}>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
+  );
+};
+
+export default App;
+```
+
+#### 중앙화된 쿼리 훅 패턴
+
+```typescript
+// hooks/useQueries.ts - 중앙화된 쿼리 관리
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  getDiaryCalendar,
+  createDiaryEntry,
+  getAllChallenges,
+  getMyChallenges,
+} from "@mooddisk/api";
+
+// 쿼리 키 중앙 관리
+export const queryKeys = {
+  diaryCalendar: (year: number, month: number) => [
+    "diaryCalendar",
+    year,
+    month,
+  ],
+  diaryYear: (year: number) => ["diaryYear", year],
+  allChallenges: () => ["allChallenges"],
+  myChallenges: () => ["myChallenges"],
+  userInfo: (userId: number) => ["userInfo", userId],
+} as const;
+
+// 일기 달력 쿼리
+export const useDiaryCalendar = (year: number, month: number) => {
+  return useQuery({
+    queryKey: queryKeys.diaryCalendar(year, month),
+    queryFn: () => getDiaryCalendar(year, month),
+    staleTime: 1000 * 60 * 5, // 5분
+    enabled: !!year && !!month, // year와 month가 있을 때만 실행
+  });
+};
+
+// 일기 년도 데이터 쿼리
+export const useDiaryYear = (year: number) => {
+  return useQuery({
+    queryKey: queryKeys.diaryYear(year),
+    queryFn: () => getDiaryYear(year),
+    staleTime: 1000 * 60 * 10, // 10분
+    enabled: !!year,
+  });
+};
+
+// 모든 챌린지 쿼리
+export const useAllChallenges = () => {
+  return useQuery({
+    queryKey: queryKeys.allChallenges(),
+    queryFn: getAllChallenges,
+    staleTime: 1000 * 60 * 15, // 15분
+  });
+};
+
+// 내 챌린지 쿼리
+export const useMyChallenges = () => {
+  return useQuery({
+    queryKey: queryKeys.myChallenges(),
+    queryFn: getMyChallenges,
+    staleTime: 1000 * 60 * 5, // 5분
+  });
+};
+
+// 일기 생성 뮤테이션
+export const useCreateDiaryEntry = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createDiaryEntry,
+    onSuccess: (data, variables) => {
+      // 관련 쿼리 무효화
+      const year = new Date(variables.date).getFullYear();
+      const month = new Date(variables.date).getMonth() + 1;
+
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.diaryCalendar(year, month),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.diaryYear(year) });
+    },
+    onError: (error) => {
+      console.error("일기 생성 실패:", error);
+    },
+  });
+};
+```
+
+#### 로딩 상태 중앙 관리
+
+```typescript
+// hooks/useLoadingState.ts - 로딩 상태 중앙 관리
+import { useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
+
+export const useLoadingState = (queryKeys: string[][]) => {
+  const queryClient = useQueryClient();
+
+  return useMemo(() => {
+    const isLoading = queryKeys.some(
+      (queryKey) => queryClient.getQueryState(queryKey)?.status === "pending"
+    );
+
+    const isError = queryKeys.some(
+      (queryKey) => queryClient.getQueryState(queryKey)?.status === "error"
+    );
+
+    return { isLoading, isError };
+  }, [queryClient, queryKeys]);
+};
+
+// 사용 예시
+const DiaryScreen = () => {
+  const year = new Date().getFullYear();
+  const month = new Date().getMonth() + 1;
+
+  const { isLoading, isError } = useLoadingState([
+    queryKeys.diaryCalendar(year, month),
+    queryKeys.diaryYear(year),
+  ]);
+
+  if (isLoading) {
+    return <LoadingSpinner text="일기 데이터를 불러오는 중..." />;
+  }
+
+  if (isError) {
+    return <ErrorView message="데이터를 불러올 수 없습니다." />;
+  }
+
+  return <DiaryContent />;
+};
+```
+
+## Navigation Pattern
+
+### 1. React Navigation 기반
+
+현재 프로젝트는 **expo-router**가 설치되어 있지만 사용하지 않고, **React Navigation**을 사용합니다.
+
+```typescript
+// layouts/TabBar.tsx
+import React from "react";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
+
+const Tab = createBottomTabNavigator();
+
+const TabBar = () => {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: keyof typeof Ionicons.glyphMap;
+
+          if (route.name === "Home") {
+            iconName = focused ? "home" : "home-outline";
+          } else if (route.name === "Diary") {
+            iconName = focused ? "book" : "book-outline";
+          } else if (route.name === "Challenge") {
+            iconName = focused ? "trophy" : "trophy-outline";
+          } else if (route.name === "Disk") {
+            iconName = focused ? "disc" : "disc-outline";
+          } else if (route.name === "MyPage") {
+            iconName = focused ? "person" : "person-outline";
+          } else {
+            iconName = "help-outline";
+          }
+
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: "#007AFF",
+        tabBarInactiveTintColor: "#8E8E93",
+        headerShown: false,
+      })}
+    >
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Diary" component={DiaryScreen} />
+      <Tab.Screen name="Challenge" component={ChallengeScreen} />
+      <Tab.Screen name="Disk" component={DiskScreen} />
+      <Tab.Screen name="MyPage" component={MyPageScreen} />
+    </Tab.Navigator>
+  );
+};
+
+export default TabBar;
+```
+
+## Styling Patterns
+
+### 1. StyleSheet 패턴
+
+```typescript
+// components/common/buttons/ActionButton.tsx
+import { StyleSheet } from "react-native";
+
+const styles = StyleSheet.create({
+  button: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44, // 터치 친화적 최소 높이
+  },
+  primary: {
+    backgroundColor: "#007AFF",
+  },
+  secondary: {
+    backgroundColor: "#F2F2F7",
+  },
+  text: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  primaryText: {
+    color: "#FFFFFF",
+  },
+  secondaryText: {
+    color: "#000000",
+  },
+});
+```
+
+### 2. 테마 시스템
+
+```typescript
+// constants/Colors.ts
+const tintColorLight = "#2f95dc";
+const tintColorDark = "#fff";
+
+export default {
+  light: {
+    text: "#000",
+    background: "#fff",
+    tint: tintColorLight,
+    tabIconDefault: "#ccc",
+    tabIconSelected: tintColorLight,
+  },
+  dark: {
+    text: "#fff",
+    background: "#000",
+    tint: tintColorDark,
+    tabIconDefault: "#ccc",
+    tabIconSelected: tintColorDark,
+  },
+};
+```
+
+## Loading & Error Management
+
+### 1. 중앙화된 로딩 관리
+
+#### 전역 로딩 상태 관리
+
+```typescript
+// context/LoadingContext.tsx - 전역 로딩 상태 관리
+import React, { createContext, useContext, useState, useCallback } from "react";
+import { View, StyleSheet } from "react-native";
+import LoadingSpinner from "../components/common/loading/LoadingSpinner";
+
+interface LoadingContextType {
+  isLoading: boolean;
+  loadingText?: string;
+  showLoading: (text?: string) => void;
+  hideLoading: () => void;
+}
+
+const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
+
+export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState<string | undefined>();
+
+  const showLoading = useCallback((text?: string) => {
+    setLoadingText(text);
+    setIsLoading(true);
+  }, []);
+
+  const hideLoading = useCallback(() => {
+    setIsLoading(false);
+    setLoadingText(undefined);
+  }, []);
+
+  return (
+    <LoadingContext.Provider
+      value={{ isLoading, loadingText, showLoading, hideLoading }}
+    >
+      {children}
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <LoadingSpinner text={loadingText} overlay />
+        </View>
+      )}
+    </LoadingContext.Provider>
+  );
+};
+
+export const useLoading = () => {
+  const context = useContext(LoadingContext);
+  if (context === undefined) {
+    throw new Error("useLoading must be used within a LoadingProvider");
+  }
+  return context;
+};
+
+const styles = StyleSheet.create({
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+  },
+});
+```
+
+#### API 요청과 연동된 로딩 관리
+
+```typescript
+// hooks/useApiWithLoading.ts - API 요청과 로딩 상태 연동
+import { useState, useCallback } from "react";
+import { useLoading } from "../context/LoadingContext";
+
+export const useApiWithLoading = () => {
+  const { showLoading, hideLoading } = useLoading();
+  const [isApiLoading, setIsApiLoading] = useState(false);
+
+  const executeWithLoading = useCallback(async <T>(
+    apiCall: () => Promise<T>,
+    loadingText?: string
+  ): Promise<T | null> => {
+    try {
+      setIsApiLoading(true);
+      showLoading(loadingText);
+
+      const result = await apiCall();
+      return result;
+    } catch (error) {
+      console.error("API 요청 실패:", error);
+      return null;
+    } finally {
+      setIsApiLoading(false);
+      hideLoading();
+    }
+  }, [showLoading, hideLoading]);
+
+  return { executeWithLoading, isApiLoading };
+};
+
+// 사용 예시
+const DiaryScreen = () => {
+  const { executeWithLoading } = useApiWithLoading();
+
+  const handleCreateDiary = async (diaryData: any) => {
+    const result = await executeWithLoading(
+      () => createDiaryEntry(diaryData),
+      "일기를 저장하는 중..."
+    );
+
+    if (result) {
+      // 성공 처리
+      console.log("일기 저장 완료");
+    }
+  };
+
+  return (
+    // JSX
+  );
+};
+```
+
+### 2. React Query와 로딩 상태 통합
+
+```typescript
+// hooks/useQueryWithLoading.ts - React Query와 로딩 상태 통합
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLoading } from "../context/LoadingContext";
+import { useCallback } from "react";
+
+export const useQueryWithLoading = <T>(
+  queryKey: string[],
+  queryFn: () => Promise<T>,
+  options?: {
+    loadingText?: string;
+    enabled?: boolean;
+    staleTime?: number;
+  }
+) => {
+  const { showLoading, hideLoading } = useLoading();
+  const [isLocalLoading, setIsLocalLoading] = useState(false);
+
+  const query = useQuery({
+    queryKey,
+    queryFn: async () => {
+      if (options?.loadingText) {
+        setIsLocalLoading(true);
+        showLoading(options.loadingText);
+      }
+
+      try {
+        const result = await queryFn();
+        return result;
+      } finally {
+        if (options?.loadingText) {
+          setIsLocalLoading(false);
+          hideLoading();
+        }
+      }
+    },
+    enabled: options?.enabled,
+    staleTime: options?.staleTime,
+  });
+
+  return {
+    ...query,
+    isLoading: query.isLoading || isLocalLoading,
+  };
+};
+
+export const useMutationWithLoading = <TData, TVariables>(
+  mutationFn: (variables: TVariables) => Promise<TData>,
+  options?: {
+    loadingText?: string;
+    onSuccess?: (data: TData) => void;
+    onError?: (error: any) => void;
+  }
+) => {
+  const { showLoading, hideLoading } = useLoading();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (variables: TVariables) => {
+      if (options?.loadingText) {
+        showLoading(options.loadingText);
+      }
+
+      try {
+        const result = await mutationFn(variables);
+        return result;
+      } finally {
+        if (options?.loadingText) {
+          hideLoading();
+        }
+      }
+    },
+    onSuccess: (data) => {
+      options?.onSuccess?.(data);
+    },
+    onError: (error) => {
+      options?.onError?.(error);
+    },
+  });
+};
+```
+
+### 3. 앱 초기 로딩 관리
+
+```typescript
+// AppContent.tsx - 앱 초기 로딩과 데이터 프리로딩
+import React, { useEffect, useRef, useState } from "react";
+import { useAuth } from "./context/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  getDiaryCalendar,
+  getAllChallenges,
+  getMyChallenges,
+  getUserInfo,
+  getDiaryYear,
+} from "@mooddisk/api";
+import { queryKeys } from "./hooks/useQueries";
+import LoadingSpinner from "./components/common/loading/LoadingSpinner";
+
+const AppContent: React.FC = () => {
+  const { user, isAuthenticated, token, login, updateToken, logout } =
+    useAuth();
+  const queryClient = useQueryClient();
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const hasPreloadedRef = useRef(false);
+
+  // 앱 초기 로딩 완료
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 2000); // 최소 2초 로딩 화면 표시
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 로그인 후 백그라운드 데이터 프리로딩
+  useEffect(() => {
+    const preloadData = async () => {
+      if (!isAuthenticated || !user || hasPreloadedRef.current) return;
+      hasPreloadedRef.current = true;
+
+      try {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+
+        console.log("🔥 데이터 프리로딩 시작");
+
+        // 병렬로 데이터 프리로딩
+        await Promise.allSettled([
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.diaryCalendar(year, month),
+            queryFn: () => getDiaryCalendar(year, month),
+            staleTime: 1000 * 60 * 5,
+          }),
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.allChallenges(),
+            queryFn: getAllChallenges,
+            staleTime: 1000 * 60 * 15,
+          }),
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.myChallenges(),
+            queryFn: getMyChallenges,
+            staleTime: 1000 * 60 * 5,
+          }),
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.diaryYear(year),
+            queryFn: () => getDiaryYear(year),
+            staleTime: 1000 * 60 * 10,
+          }),
+          user?.id
+            ? queryClient.prefetchQuery({
+                queryKey: queryKeys.userInfo(parseInt(user.id)),
+                queryFn: () => getUserInfo(parseInt(user.id)),
+                staleTime: 1000 * 60 * 30,
+              })
+            : Promise.resolve(),
+        ]);
+
+        console.log("🔥 데이터 프리로딩 완료");
+      } catch (error) {
+        console.warn("데이터 프리로딩 실패:", error);
+      }
+    };
+
+    preloadData();
+  }, [isAuthenticated, user, queryClient]);
+
+  // 초기 로딩 중
+  if (isInitialLoading) {
+    return <LoadingSpinner text="앱을 시작하는 중..." />;
+  }
+
+  // 로그인 상태에 따라 화면 렌더링
+  if (isAuthenticated && user) {
+    return <MainScreen />;
+  }
+
+  return <LoginScreen />;
+};
+
+export default AppContent;
+```
+
+## Performance Patterns
+
+### 1. 메모이제이션 패턴
+
+```typescript
+import React, { useCallback, useMemo } from "react";
+
+const DiaryList = ({ diaries, onDiaryPress }) => {
+  // 함수 메모이제이션
+  const handleDiaryPress = useCallback(
+    (diaryId: string) => {
+      onDiaryPress(diaryId);
+    },
+    [onDiaryPress]
+  );
+
+  // 값 메모이제이션
+  const sortedDiaries = useMemo(() => {
+    return diaries.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, [diaries]);
+
+  return (
+    <FlatList
+      data={sortedDiaries}
+      renderItem={({ item }) => (
+        <DiaryItem diary={item} onPress={() => handleDiaryPress(item.id)} />
+      )}
+      keyExtractor={(item) => item.id}
+    />
+  );
+};
+```
+
+### 2. 이미지 최적화
+
+```typescript
+import FastImage from "react-native-fast-image";
+
+const OptimizedImage = ({ source, style }) => {
+  return (
+    <FastImage
+      source={source}
+      style={style}
+      resizeMode={FastImage.resizeMode.cover}
+      // 캐시 설정
+      cache={FastImage.cacheControl.immutable}
+    />
+  );
+};
+```
+
+## Error Handling
+
+### 1. 에러 바운더리
+
+```typescript
+// components/common/ErrorBoundary.tsx
+import React, { Component, ReactNode } from "react";
+import { View, Text, StyleSheet } from "react-native";
+
+interface Props {
+  children: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+  error?: Error;
+}
+
+class ErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.container}>
+          <Text style={styles.title}>오류가 발생했습니다</Text>
+          <Text style={styles.message}>
+            {this.state.error?.message || "알 수 없는 오류가 발생했습니다."}
+          </Text>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  message: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+  },
+});
+
+export default ErrorBoundary;
+```
+
+## Best Practices
+
+### 1. 컴포넌트 설계 원칙
+
+- **단일 책임 원칙**: 각 컴포넌트는 하나의 명확한 역할을 가져야 함
+- **재사용성**: 공통 컴포넌트는 다양한 상황에서 재사용 가능해야 함
+- **Props 인터페이스**: 명확한 TypeScript 인터페이스 정의
+- **기본값 설정**: Props에 적절한 기본값 제공
+
+### 2. 성능 최적화
+
+- **불필요한 리렌더링 방지**: useCallback, useMemo 활용
+- **이미지 최적화**: FastImage 사용
+- **메모리 관리**: 컴포넌트 언마운트 시 정리 작업
+- **번들 크기 최적화**: 필요한 모듈만 import
+
+### 3. 코드 품질
+
+- **TypeScript 활용**: 타입 안전성 보장
+- **에러 처리**: 적절한 에러 바운더리와 try-catch 사용
+- **테스트**: 단위 테스트와 통합 테스트 작성
+- **문서화**: 복잡한 로직에 대한 주석 작성
+
+description: 현재 모바일 앱의 아키텍처 패턴과 구조 가이드라인
+globs:
+alwaysApply: false
+
+---

@@ -1,0 +1,852 @@
+# Mobile Development Guidelines
+
+## Technology Stack
+
+### Core Technologies
+
+- **React**: 18.2.0 (React Native 0.74.5 호환)
+- **React Native**: 0.74.5 (안정 버전)
+- **Expo SDK**: 51.0.0 (안정 버전)
+- **Package Manager**: Yarn 1.22.22
+- **TypeScript**: 5.3.3
+- **Kotlin**: 1.8.22 (Android 네이티브 개발용, React Native 0.74.5 호환)
+- **Development Build**: EAS Dev Client (Expo Go 사용 안함)
+
+### Build & Development
+
+- **Development Client**: EAS Dev Client 로컬 빌드 사용
+- **Expo Go**: 사용하지 않음 (네이티브 모듈 및 커스텀 개발 클라이언트 필요)
+- **EAS Build**: 프로덕션 빌드용
+- **Metro Bundler**: JavaScript 번들링
+
+## Mobile-First Architecture
+
+### Layout Structure
+
+- **Mobile Layout**: `src/layout/MobileLayout.tsx` - 모바일 전용 레이아웃
+- **Mobile Components**: `src/layout/phone/` - 모바일 전용 UI 컴포넌트
+- **Mobile Pages**: `src/pages/web/*Section.tsx` - 통합된 페이지 (모바일/웹)
+- **Responsive Utils**: `src/layout/utils/MediaQuery.tsx` - 반응형 유틸리티
+
+### Key Mobile Components
+
+- **MobileHeader**: [MobileHeader.tsx](mdc:src/main/frontend/src/layout/phone/MobileHeader.tsx)
+- **MobileTabBar**: [MobileTabBar.tsx](mdc:src/main/frontend/src/layout/phone/MobileTabBar.tsx)
+- **MobileSideMenu**: [MobileSideMenu.tsx](mdc:src/main/frontend/src/layout/phone/MobileSideMenu.tsx)
+- **MobileLayout**: [MobileLayout.tsx](mdc:src/main/frontend/src/layout/MobileLayout.tsx)
+
+## Development Workflow
+
+### Local Development Setup
+
+```bash
+# 의존성 설치
+yarn install
+
+# 개발 서버 시작 (EAS Dev Client 필요)
+yarn start
+
+# iOS 시뮬레이터에서 실행
+yarn ios
+
+# Android 에뮬레이터에서 실행
+yarn android
+
+# 웹에서 실행
+yarn web
+```
+
+### EAS Dev Client Build
+
+```bash
+# iOS 개발 빌드 (로컬)
+eas build --profile development --platform ios --local
+
+# Android 개발 빌드 (로컬)
+eas build --profile development --platform android --local
+
+# 프로덕션 빌드
+eas build --profile production --platform all
+```
+
+### Key Configuration Files
+
+- **app.json**: Expo 앱 설정 (번들 ID, 스킴, 플러그인 등)
+- **eas.json**: EAS 빌드 프로필 설정
+- **package.json**: 의존성 및 스크립트 관리
+- **metro.config.js**: Metro 번들러 설정
+- **tsconfig.json**: TypeScript 설정
+
+### Kotlin Configuration
+
+```json
+// app.json에서 Kotlin 버전 설정
+{
+  "expo": {
+    "plugins": [
+      [
+        "@react-native-seoul/kakao-login",
+        {
+          "kotlinVersion": "1.8.22"
+        }
+      ]
+    ]
+  }
+}
+```
+
+```gradle
+// android/app/build.gradle (자동 생성됨)
+android {
+    compileSdkVersion 34
+    buildToolsVersion "34.0.0"
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.8.22"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22"
+}
+```
+
+## Mobile Project Structure
+
+### Core Directories
+
+```
+src/main/mobile/
+├── App.tsx                # 메인 앱 컴포넌트 (전통적인 React Native 구조)
+├── index.ts               # 앱 진입점
+├── app.config.ts          # Expo 설정 파일
+├── app.json               # Expo 앱 설정
+├── babel.config.js        # Babel 설정
+├── metro.config.js        # Metro 번들러 설정
+├── tsconfig.json          # TypeScript 설정
+├── components/            # 재사용 가능한 컴포넌트
+│   ├── common/            # 공통 컴포넌트
+│   │   ├── brand/         # 브랜드 관련 컴포넌트
+│   │   ├── buttons/       # 버튼 컴포넌트들
+│   │   ├── comments/      # 댓글 관련 컴포넌트
+│   │   ├── forms/         # 폼 컴포넌트들
+│   │   ├── icons/         # 아이콘 컴포넌트들
+│   │   ├── loading/       # 로딩 컴포넌트들
+│   │   ├── modals/        # 모달 컴포넌트들
+│   │   └── timeline/      # 타임라인 컴포넌트들
+│   └── features/          # 기능별 컴포넌트
+│       ├── challenge/     # 챌린지 관련
+│       ├── diary/         # 일기 관련
+│       ├── disk/          # 디스크 관련
+│       ├── login/         # 로그인 관련
+│       └── mypage/        # 마이페이지 관련
+├── screens/               # 화면 컴포넌트들
+│   ├── MainScreen.tsx     # 메인 화면
+│   ├── DiaryScreen.tsx    # 일기 화면
+│   ├── ChallengeScreen.tsx # 챌린지 화면
+│   ├── DiskScreen.tsx     # 디스크 화면
+│   └── MyPageScreen.tsx   # 마이페이지 화면
+├── features/              # 기능별 모듈
+│   └── auth/              # 인증 관련 (Apple, Google, Kakao)
+├── layouts/               # 레이아웃 컴포넌트들
+│   ├── MainLayout.tsx     # 메인 레이아웃
+│   ├── Header.tsx         # 헤더 컴포넌트
+│   └── TabBar.tsx         # 탭바 컴포넌트
+├── hooks/                 # 커스텀 훅
+├── context/               # React Context
+├── config/                # 설정 파일
+├── constants/             # 상수
+├── utils/                 # 유틸리티 함수
+├── assets/                # 이미지, 폰트 등
+├── android/               # Android 네이티브 코드
+└── ios/                   # iOS 네이티브 코드
+```
+
+### Key Features
+
+- **Authentication**: Apple, Google, Kakao 소셜 로그인
+- **Navigation**: React Navigation 기반 탭 네비게이션 (expo-router 설치되어 있지만 사용하지 않음)
+- **State Management**: React Context + Custom Hooks + React Query
+- **Styling**: StyleSheet + Themed Components
+- **Platform Support**: iOS, Android, Web
+- **Architecture**: 전통적인 React Native 구조 (App.tsx 기반)
+
+## Mobile Development Patterns
+
+### 1. Component Organization
+
+#### App.tsx 구조 (메인 앱 컴포넌트)
+
+```typescript
+// App.tsx - 메인 앱 컴포넌트
+import React, { useEffect, useRef, useState } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "./context/AuthContext";
+import AppContent from "./AppContent";
+
+const App: React.FC = () => {
+  const queryClientRef = useRef<QueryClient>();
+  if (!queryClientRef.current) {
+    queryClientRef.current = new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 1000 * 60 * 5, // 5분
+          gcTime: 1000 * 60 * 30, // 30분
+          refetchOnReconnect: true,
+          refetchOnMount: false,
+          refetchOnWindowFocus: false,
+        },
+      },
+    });
+  }
+
+  return (
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClientRef.current}>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
+  );
+};
+
+export default App;
+```
+
+#### 컴포넌트 구조 패턴
+
+```typescript
+// components/common/buttons/ActionButton.tsx
+import React, { useCallback } from "react";
+import { TouchableOpacity, Text, StyleSheet } from "react-native";
+
+interface ActionButtonProps {
+  title: string;
+  onPress?: () => void;
+  variant?: "primary" | "secondary";
+  disabled?: boolean;
+}
+
+const ActionButton = ({
+  title,
+  onPress,
+  variant = "primary",
+  disabled = false,
+}: ActionButtonProps) => {
+  const handlePress = useCallback(() => {
+    if (!disabled && onPress) {
+      onPress();
+    }
+  }, [onPress, disabled]);
+
+  return (
+    <TouchableOpacity
+      style={[styles.button, styles[variant], disabled && styles.disabled]}
+      onPress={handlePress}
+      disabled={disabled}
+    >
+      <Text style={[styles.text, styles[`${variant}Text`]]}>{title}</Text>
+    </TouchableOpacity>
+  );
+};
+
+const styles = StyleSheet.create({
+  button: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  primary: {
+    backgroundColor: "#007AFF",
+  },
+  secondary: {
+    backgroundColor: "#F2F2F7",
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+  text: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  primaryText: {
+    color: "#FFFFFF",
+  },
+  secondaryText: {
+    color: "#000000",
+  },
+});
+
+export default ActionButton;
+```
+
+### 2. Screen Organization
+
+#### 화면 컴포넌트 구조
+
+```typescript
+// screens/MainScreen.tsx
+import React from "react";
+import { View, StyleSheet } from "react-native";
+import MainLayout from "../layouts/MainLayout";
+import TabBar from "../layouts/TabBar";
+
+const MainScreen = () => {
+  return (
+    <View style={styles.container}>
+      <MainLayout />
+      <TabBar />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
+
+export default MainScreen;
+```
+
+### 3. Layout Components
+
+#### 레이아웃 컴포넌트 패턴
+
+```typescript
+// layouts/MainLayout.tsx
+import React from "react";
+import { View, StyleSheet, SafeAreaView } from "react-native";
+import Header from "./Header";
+
+interface MainLayoutProps {
+  children?: React.ReactNode;
+}
+
+const MainLayout = ({ children }: MainLayoutProps) => {
+  return (
+    <SafeAreaView style={styles.container}>
+      <Header />
+      <View style={styles.content}>{children}</View>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  content: {
+    flex: 1,
+  },
+});
+
+export default MainLayout;
+```
+
+### 4. Feature Components
+
+#### 기능별 컴포넌트 구조
+
+```typescript
+// components/features/diary/calendar/DiaryCalendar.tsx
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { useDiaryCalendar } from "@mooddisk/hooks";
+
+const DiaryCalendar = () => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const { data: diaryData, isLoading } = useDiaryCalendar(
+    currentDate.getFullYear(),
+    currentDate.getMonth() + 1
+  );
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>일기 달력</Text>
+      {/* 달력 구현 */}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 16,
+  },
+});
+
+export default DiaryCalendar;
+```
+
+### 5. Touch-Friendly Design
+
+- 최소 터치 영역: 44px × 44px
+- 터치 피드백 제공 (hover, active 상태)
+- 스와이프 제스처 지원
+- 가상 키보드 고려한 입력 필드
+
+### 3. Mobile-Specific Styling
+
+```typescript
+// 모바일 전용 CSS 클래스 사용
+className = "mobile-card mobile-button mobile-header";
+```
+
+### 4. Performance Optimization
+
+- 이미지 lazy loading
+- 무한 스크롤 구현
+- 터치 이벤트 최적화
+- 번들 크기 최소화
+
+### 5. EAS Dev Client Specific Patterns
+
+```typescript
+// 개발 빌드에서만 사용 가능한 기능들
+import * as Updates from "expo-updates";
+import * as DevMenu from "expo-dev-menu";
+
+// 업데이트 확인
+const checkForUpdates = async () => {
+  if (__DEV__) return; // 개발 모드에서는 스킵
+
+  try {
+    const update = await Updates.checkForUpdateAsync();
+    if (update.isAvailable) {
+      await Updates.fetchUpdateAsync();
+      await Updates.reloadAsync();
+    }
+  } catch (error) {
+    console.error("Update failed:", error);
+  }
+};
+
+// 개발 메뉴 (EAS Dev Client에서만 사용 가능)
+const openDevMenu = () => {
+  if (__DEV__) {
+    DevMenu.openDevMenu();
+  }
+};
+```
+
+### 6. Yarn Workspace Integration
+
+```json
+// package.json에서 워크스페이스 의존성 참조
+{
+  "dependencies": {
+    "@mooddisk/types": "file:../../../packages/types"
+  }
+}
+```
+
+```typescript
+// 공유 타입 사용
+import { User, DiaryEntry } from "@mooddisk/types";
+```
+
+### 7. Kotlin Native Module Development
+
+```kotlin
+// android/app/src/main/kotlin/com/mooddisk/mobile/MyModule.kt
+package com.mooddisk.mobile
+
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.bridge.ReactContextBaseJavaModule
+import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.Promise
+
+class MyModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+
+    override fun getName(): String {
+        return "MyModule"
+    }
+
+    @ReactMethod
+    fun getDeviceInfo(promise: Promise) {
+        try {
+            val deviceInfo = mapOf(
+                "platform" to "android",
+                "version" to android.os.Build.VERSION.RELEASE
+            )
+            promise.resolve(deviceInfo)
+        } catch (e: Exception) {
+            promise.reject("ERROR", e.message, e)
+        }
+    }
+}
+```
+
+```kotlin
+// android/app/src/main/kotlin/com/mooddisk/mobile/MyPackage.kt
+package com.mooddisk.mobile
+
+import com.facebook.react.ReactPackage
+import com.facebook.react.bridge.NativeModule
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.uimanager.ViewManager
+
+class MyPackage : ReactPackage {
+    override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
+        return listOf(MyModule(reactContext))
+    }
+
+    override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
+        return emptyList()
+    }
+}
+```
+
+### 8. Kotlin Best Practices
+
+```kotlin
+// Null Safety 활용
+fun processUser(user: User?) {
+    user?.let {
+        // null이 아닐 때만 실행
+        println("User name: ${it.name}")
+    } ?: run {
+        // null일 때 실행
+        println("User is null")
+    }
+}
+
+// Extension Functions
+fun String.isValidEmail(): Boolean {
+    return this.contains("@") && this.contains(".")
+}
+
+// Data Classes
+data class ApiResponse(
+    val success: Boolean,
+    val data: Any?,
+    val message: String?
+)
+
+// Coroutines (비동기 처리)
+import kotlinx.coroutines.*
+
+class ApiService {
+    suspend fun fetchData(): ApiResponse = withContext(Dispatchers.IO) {
+        // 네트워크 요청
+        ApiResponse(true, "data", "success")
+    }
+}
+```
+
+## Mobile UI Guidelines
+
+### Navigation
+
+- **Bottom Tab Bar**: 주요 기능 접근
+- **Header**: 현재 섹션 표시 및 메뉴
+- **Side Menu**: 사용자 설정 및 부가 기능
+- **Floating Action Button**: 주요 액션 (작성, 추가 등)
+
+### Layout Principles
+
+- **Single Column Layout**: 모바일 화면에 최적화
+- **Card-Based Design**: 정보 그룹화
+- **Progressive Disclosure**: 정보를 단계적으로 표시
+- **Thumb-Friendly**: 엄지손가락으로 쉽게 조작
+
+### Typography & Spacing
+
+- **Font Size**: 최소 16px (iOS), 14px (Android)
+- **Line Height**: 1.4-1.6
+- **Touch Targets**: 최소 44px 간격
+- **Padding**: 16px 기본, 8px 최소
+
+## Mobile-Specific Features
+
+### 1. Gesture Support
+
+```typescript
+// 스와이프 제스처 구현
+const handleSwipe = (direction: "left" | "right") => {
+  // 제스처 처리 로직
+};
+```
+
+### 2. Offline Support
+
+- 로컬 스토리지 활용
+- 오프라인 상태 감지
+- 데이터 동기화
+
+### 3. Mobile Notifications
+
+- 푸시 알림 설정
+- 로컬 알림
+- 배지 카운트
+
+### 4. Camera & Media
+
+- 카메라 접근
+- 이미지 업로드
+- 갤러리 선택
+
+## Responsive Design
+
+### Breakpoints
+
+```typescript
+// MediaQuery.tsx 활용
+const isMobile = window.innerWidth < 768;
+const isTablet = window.innerWidth >= 768 && window.innerWidth < 1024;
+```
+
+### Conditional Rendering
+
+```typescript
+// 모바일/데스크톱 조건부 렌더링
+{
+  isMobile ? <MobileComponent /> : <DesktopComponent />;
+}
+```
+
+## Testing Guidelines
+
+### Mobile Testing
+
+- 다양한 화면 크기 테스트
+- 터치 인터랙션 테스트
+- 성능 테스트 (3G, 느린 네트워크)
+- 접근성 테스트
+
+### Device Testing
+
+- **iOS**: iPhone 시뮬레이터 + 실제 기기
+- **Android**: Android 에뮬레이터 + 실제 기기
+- **Web**: Chrome, Safari, Firefox
+- **EAS Dev Client**: 개발 빌드에서 테스트
+
+### Testing Commands
+
+```bash
+# Jest 테스트 실행
+yarn test
+
+# 특정 테스트 파일 실행
+yarn test components/__tests__/StyledText-test.js
+
+# 테스트 커버리지 확인
+yarn test --coverage
+```
+
+### Debugging
+
+```typescript
+// React Native Debugger 사용
+import { LogBox } from "react-native";
+
+// 경고 숨기기 (개발 시에만)
+LogBox.ignoreLogs(["Warning: ..."]);
+
+// Flipper 디버깅 (EAS Dev Client에서 지원)
+import { Flipper } from "react-native-flipper";
+```
+
+## Performance Best Practices
+
+### 1. Bundle Optimization
+
+- 코드 스플리팅
+- Tree shaking
+- 이미지 최적화
+- 폰트 최적화
+
+### 2. Runtime Performance
+
+- 불필요한 리렌더링 방지
+- 메모이제이션 활용
+- 가상화 (긴 리스트)
+- 지연 로딩
+
+### 3. Network Optimization
+
+- API 요청 최적화
+- 캐싱 전략
+- 오프라인 지원
+- 이미지 압축
+
+## Important Notes
+
+### EAS Dev Client vs Expo Go
+
+- **EAS Dev Client**: 커스텀 네이티브 모듈 사용 가능, 로컬 빌드 필요
+- **Expo Go**: 제한된 네이티브 모듈만 사용 가능, 빠른 프로토타이핑용
+- **현재 프로젝트**: EAS Dev Client 사용 (Kakao, Apple 로그인 등 커스텀 모듈 필요)
+
+### React 18.2 Features
+
+- **Concurrent Features**: 자동 배치 업데이트, Suspense 개선
+- **New Hooks**: useId, useDeferredValue, useTransition
+- **Strict Mode**: 개발 모드에서 이중 렌더링으로 부작용 감지
+- **React Native 0.74.5 호환**: 안정적인 React Native 버전과 완벽 호환
+
+### Yarn Workspace
+
+- **Monorepo**: 프론트엔드, 모바일, 백엔드가 하나의 저장소
+- **Shared Types**: `@mooddisk/types` 패키지로 타입 공유
+- **Dependency Management**: Yarn으로 의존성 관리
+
+### Build Requirements
+
+- **iOS**: Xcode 16.4+, iOS 15.1+ 타겟
+- **Android**: Android SDK, Gradle 8.0+, Kotlin 1.8.22
+- **EAS CLI**: 16.18.0+ 버전 필요
+- **Kotlin**: 1.8.22 (React Native 0.74.5 호환, 안정성 우선)
+
+### Kotlin Development Environment
+
+```bash
+# Android Studio에서 Kotlin 플러그인 활성화
+# File > Settings > Plugins > Kotlin 설치
+
+# Gradle에서 Kotlin 설정 확인
+./gradlew --version
+
+# Kotlin 컴파일러 버전 확인
+./gradlew :app:dependencies | grep kotlin
+```
+
+### Kotlin Version Compatibility
+
+**중요**: React Native 0.74.5와의 호환성을 위해 **Kotlin 1.8.22**를 사용합니다.
+
+- **Kotlin 1.9.0**: React Native 0.74.5와 호환성 문제 발생 가능
+- **Kotlin 1.8.22**: React Native 0.74.5와 안정적 호환성 보장
+- **Kotlin 1.7.x**: 이전 버전, 기능 제한 있음
+
+```json
+// app.json에서 안전한 Kotlin 버전 설정
+{
+  "expo": {
+    "plugins": [
+      [
+        "@react-native-seoul/kakao-login",
+        {
+          "kotlinVersion": "1.8.22" // 안정적인 버전 사용
+        }
+      ]
+    ]
+  }
+}
+```
+
+### Native Module Integration
+
+```typescript
+// TypeScript에서 Kotlin 모듈 사용
+import { NativeModules } from "react-native";
+
+const { MyModule } = NativeModules;
+
+// Kotlin 모듈 호출
+const getDeviceInfo = async () => {
+  try {
+    const info = await MyModule.getDeviceInfo();
+    console.log("Device Info:", info);
+  } catch (error) {
+    console.error("Error:", error);
+  }
+};
+```
+
+## 현재 프로젝트 설정 상태
+
+### ✅ 해결된 빌드 문제들
+
+1. **iOS 빌드 성공**
+
+   - `TARGET_IPHONE_SIMULATOR` 오류 해결
+   - `expo-dev-menu` Swift 파일 수정
+   - CocoaPods 의존성 충돌 해결
+
+2. **Android 빌드 성공**
+
+   - Kotlin 1.8.22 버전 호환성 확보
+   - Gradle 설정 최적화
+   - React Native 0.74.5 호환성 확인
+
+3. **공유 의존성 일치**
+   - Expo SDK 51.0.0
+   - React 18.2.0
+   - React Native 0.74.5
+   - TypeScript 5.3.3
+
+### 🔧 현재 활성화된 설정
+
+```json
+// package.json 핵심 의존성
+{
+  "expo": "~51.0.0",
+  "react": "18.2.0",
+  "react-native": "0.74.5",
+  "typescript": "~5.3.3",
+  "kotlinVersion": "1.8.22"
+}
+```
+
+```gradle
+// android/build.gradle
+ext {
+    kotlinVersion = '1.8.22'
+}
+```
+
+```swift
+// iOS TARGET_IPHONE_SIMULATOR 해결
+#if targetEnvironment(simulator)
+let isSimulator = true
+#else
+let isSimulator = false
+#endif
+```
+
+### 🚀 빌드 명령어
+
+```bash
+# Android 빌드 (성공)
+yarn expo run:android --device
+
+# iOS 빌드 (성공)
+yarn expo run:ios
+
+# 개발 서버
+yarn start
+```
+
+### ⚠️ 주의사항
+
+1. **독립적 빌드**: Android와 iOS 빌드는 서로 독립적으로 작동
+2. **의존성 관리**: `package.json` 변경 시 양쪽 플랫폼 모두 확인 필요
+3. **네이티브 모듈**: 새 모듈 추가 시 Android/iOS 모두 설정 필요
+4. **버전 호환성**: Expo SDK 51 기반으로 모든 패키지 일치 유지
+
+description: Mobile development guidelines for React Native with Expo and EAS Dev Client
+globs:
+alwaysApply: false
+
+---

@@ -1,0 +1,384 @@
+# Platform Adapters Guidelines
+
+## Adapter Pattern Overview
+
+플랫폼별 차이점을 추상화하여 공통 코드에서 사용할 수 있도록 하는 패턴입니다.
+
+## Core Adapters
+
+### Storage Adapter
+
+```typescript
+interface StorageAdapter {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
+  clear(): Promise<void>;
+}
+
+// 웹 구현체
+class WebStorageAdapter implements StorageAdapter {
+  async getItem(key: string): Promise<string | null> {
+    return localStorage.getItem(key);
+  }
+
+  async setItem(key: string, value: string): Promise<void> {
+    localStorage.setItem(key, value);
+  }
+
+  async removeItem(key: string): Promise<void> {
+    localStorage.removeItem(key);
+  }
+
+  async clear(): Promise<void> {
+    localStorage.clear();
+  }
+}
+
+// 모바일 구현체
+class MobileStorageAdapter implements StorageAdapter {
+  async getItem(key: string): Promise<string | null> {
+    return await AsyncStorage.getItem(key);
+  }
+
+  async setItem(key: string, value: string): Promise<void> {
+    await AsyncStorage.setItem(key, value);
+  }
+
+  async removeItem(key: string): Promise<void> {
+    await AsyncStorage.removeItem(key);
+  }
+
+  async clear(): Promise<void> {
+    await AsyncStorage.clear();
+  }
+}
+```
+
+### API Adapter
+
+```typescript
+interface ApiAdapter {
+  get<T>(url: string, config?: any): Promise<T>;
+  post<T>(url: string, data?: any, config?: any): Promise<T>;
+  put<T>(url: string, data?: any, config?: any): Promise<T>;
+  delete<T>(url: string, config?: any): Promise<T>;
+}
+
+// 웹/모바일 환경별 사용법
+// 웹: import { ... } from '@mooddisk/api'
+// 모바일: import { ... } from '@mooddisk/api/index.native'
+
+// 웹 구현체 (axios)
+class WebApiAdapter implements ApiAdapter {
+  private client = axios.create({
+    baseURL: process.env.REACT_APP_API_URL,
+    timeout: 10000,
+  });
+
+  async get<T>(url: string, config?: any): Promise<T> {
+    const response = await this.client.get<T>(url, config);
+    return response.data;
+  }
+
+  // ... 다른 메서드들
+}
+
+// 모바일 구현체 (fetch)
+class MobileApiAdapter implements ApiAdapter {
+  private baseURL = process.env.EXPO_PUBLIC_API_URL;
+
+  async get<T>(url: string, config?: any): Promise<T> {
+    const response = await fetch(`${this.baseURL}${url}`, {
+      method: "GET",
+      ...config,
+    });
+    return await response.json();
+  }
+
+  // ... 다른 메서드들
+}
+```
+
+### Navigation Adapter
+
+```typescript
+interface NavigationAdapter {
+  navigate(route: string, params?: any): void;
+  goBack(): void;
+  reset(route: string): void;
+  canGoBack(): boolean;
+}
+
+// 웹 구현체 (React Router)
+class WebNavigationAdapter implements NavigationAdapter {
+  private navigate: (path: string, state?: any) => void;
+  private location: Location;
+
+  constructor(navigate: any, location: Location) {
+    this.navigate = navigate;
+    this.location = location;
+  }
+
+  navigate(route: string, params?: any): void {
+    this.navigate(route, { state: params });
+  }
+
+  goBack(): void {
+    window.history.back();
+  }
+
+  reset(route: string): void {
+    this.navigate(route, { replace: true });
+  }
+
+  canGoBack(): boolean {
+    return window.history.length > 1;
+  }
+}
+
+// 모바일 구현체 (React Navigation)
+class MobileNavigationAdapter implements NavigationAdapter {
+  private navigation: any;
+
+  constructor(navigation: any) {
+    this.navigation = navigation;
+  }
+
+  navigate(route: string, params?: any): void {
+    this.navigation.navigate(route, params);
+  }
+
+  goBack(): void {
+    this.navigation.goBack();
+  }
+
+  reset(route: string): void {
+    this.navigation.reset({
+      index: 0,
+      routes: [{ name: route }],
+    });
+  }
+
+  canGoBack(): boolean {
+    return this.navigation.canGoBack();
+  }
+}
+```
+
+## Adapter Factory
+
+### Storage Factory
+
+```typescript
+// packages/shared-adapters/src/storage/StorageFactory.ts
+export const createStorageAdapter = (): StorageAdapter => {
+  if (typeof window !== "undefined") {
+    // 웹 환경
+    return new WebStorageAdapter();
+  } else {
+    // 모바일 환경
+    return new MobileStorageAdapter();
+  }
+};
+```
+
+### API Factory
+
+```typescript
+// packages/shared-adapters/src/api/ApiFactory.ts
+export const createApiAdapter = (): ApiAdapter => {
+  if (typeof window !== "undefined") {
+    // 웹 환경
+    return new WebApiAdapter();
+  } else {
+    // 모바일 환경
+    return new MobileApiAdapter();
+  }
+};
+```
+
+## Usage in Shared Packages
+
+### Hooks with Adapters
+
+```typescript
+// packages/hooks/src/common/useLocalStorage.ts
+import { createStorageAdapter } from "@mooddisk/shared-adapters";
+
+export const useLocalStorage = <T>(key: string, defaultValue: T) => {
+  const storage = createStorageAdapter();
+  const [value, setValue] = useState<T>(defaultValue);
+
+  useEffect(() => {
+    storage.getItem(key).then((stored) => {
+      if (stored) {
+        setValue(JSON.parse(stored));
+      }
+    });
+  }, [key]);
+
+  const updateValue = useCallback(
+    (newValue: T) => {
+      setValue(newValue);
+      storage.setItem(key, JSON.stringify(newValue));
+    },
+    [key]
+  );
+
+  return [value, updateValue] as const;
+};
+```
+
+### API Client with Adapters
+
+```typescript
+// packages/api/src/client/ApiClient.ts
+import { createApiAdapter } from "@mooddisk/shared-adapters";
+
+export class ApiClient {
+  private adapter: ApiAdapter;
+
+  constructor() {
+    this.adapter = createApiAdapter();
+  }
+
+  async get<T>(url: string): Promise<T> {
+    return this.adapter.get<T>(url);
+  }
+
+  async post<T>(url: string, data: any): Promise<T> {
+    return this.adapter.post<T>(url, data);
+  }
+}
+```
+
+## Platform Detection
+
+### Web Detection
+
+```typescript
+export const isWeb = (): boolean => {
+  return typeof window !== "undefined" && typeof document !== "undefined";
+};
+```
+
+### Mobile Detection
+
+```typescript
+import { Platform } from "react-native";
+
+export const isMobile = (): boolean => {
+  return Platform.OS === "ios" || Platform.OS === "android";
+};
+```
+
+### Environment Detection
+
+```typescript
+export const getEnvironment = (): "web" | "mobile" => {
+  if (isWeb()) return "web";
+  if (isMobile()) return "mobile";
+  throw new Error("Unknown platform");
+};
+```
+
+## Best Practices
+
+### 1. Interface First
+
+- 어댑터 인터페이스를 먼저 정의
+- 구현체는 인터페이스를 준수
+- 공통 동작을 인터페이스에 명시
+
+### 2. Error Handling
+
+- 플랫폼별 에러 처리 통합
+- 공통 에러 타입 사용
+- 사용자 친화적 에러 메시지
+
+### 3. Testing
+
+- 어댑터별 단위 테스트
+- Mock을 사용한 통합 테스트
+- 플랫폼별 E2E 테스트
+
+### 4. Performance
+
+- 어댑터 인스턴스 재사용
+- 지연 로딩 적용
+- 메모리 누수 방지
+
+## Common Patterns
+
+### Singleton Pattern
+
+```typescript
+class AdapterManager {
+  private static instance: AdapterManager;
+  private storageAdapter: StorageAdapter;
+  private apiAdapter: ApiAdapter;
+
+  private constructor() {
+    this.storageAdapter = createStorageAdapter();
+    this.apiAdapter = createApiAdapter();
+  }
+
+  static getInstance(): AdapterManager {
+    if (!AdapterManager.instance) {
+      AdapterManager.instance = new AdapterManager();
+    }
+    return AdapterManager.instance;
+  }
+
+  getStorageAdapter(): StorageAdapter {
+    return this.storageAdapter;
+  }
+
+  getApiAdapter(): ApiAdapter {
+    return this.apiAdapter;
+  }
+}
+```
+
+### Factory Pattern
+
+```typescript
+export const createAdapters = () => {
+  return {
+    storage: createStorageAdapter(),
+    api: createApiAdapter(),
+    navigation: createNavigationAdapter(),
+  };
+};
+```
+
+## API Package Usage
+
+### 웹 환경에서 API 사용
+
+```typescript
+// 웹에서는 @mooddisk/api 사용 (dist 파일)
+import { getUserInfo, updateUserInfo } from "@mooddisk/api";
+import { UserInfo } from "@mooddisk/types";
+```
+
+### 모바일 환경에서 API 사용
+
+```typescript
+// 모바일에서는 @mooddisk/api/index.native 사용 (TypeScript 직접)
+import { getUserInfo, updateUserInfo } from "@mooddisk/api/index.native";
+import { UserInfo } from "@mooddisk/types";
+```
+
+### 중요 사항
+
+- **모바일에서 `@mooddisk/api` 사용 금지**: `navigator.origin` 오류 발생
+- **웹에서 `@mooddisk/api/index.native` 사용 금지**: 웹팩이 TypeScript를 파싱하지 못함
+- **환경별 명확한 분리**: 각 플랫폼에 최적화된 인스턴스 사용
+
+description: 플랫폼별 어댑터 패턴 가이드라인
+globs:
+alwaysApply: false
+
+---

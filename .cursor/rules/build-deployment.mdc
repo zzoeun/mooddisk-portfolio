@@ -1,0 +1,76 @@
+# Build & Deployment Guide
+
+## Build System
+
+- **Backend**: Gradle with Spring Boot
+- **Frontend**: React with yarn
+- **Integration**: Gradle task to build React and include in Spring Boot JAR
+
+## Build Configuration
+
+- **Main Build File**: [build.gradle](mdc:build.gradle)
+- **Frontend Package**: [package.json](mdc:src/main/frontend/package.json)
+- **Docker Configuration**: [Dockerfile](mdc:Dockerfile)
+
+## Build Process
+
+1. **Frontend Build**: React app builds to `src/main/resources/static`
+2. **Backend Build**: Spring Boot creates executable JAR
+3. **Integration**: Frontend assets included in Spring Boot JAR
+
+## Development Environment
+
+- **Backend**: `localhost:8080`
+- **Frontend**: `localhost:3000` (with proxy to backend)
+- **Database**: MariaDB (local or RDS)
+- **Environment**: Use `.env` file for local development
+
+## Production Environment
+
+- **Hosting**: AWS EC2
+- **Database**: AWS RDS (MariaDB)
+- **Storage**: AWS S3 for file uploads
+- **Domain**: https://astromood.co.kr
+
+## Environment Variables
+
+- `GOOGLE_CLIENT_ID`: Google OAuth client ID
+- `GOOGLE_SECRET_KEY`: Google OAuth secret
+- `KAKAO_REST_API_KEY`: Kakao OAuth API key
+- `KAKAO_SECRET_KEY`: Kakao OAuth secret
+- `SPRING_PROFILES_ACTIVE`: Spring profile (local/prod)
+
+## Docker Deployment
+
+- Multi-stage build for optimization
+- Includes both frontend and backend
+- Exposes port 8080
+- Uses Java 17 runtime
+
+## AWS Services
+
+- **EC2**: Application hosting
+- **RDS**: MariaDB database
+- **S3**: File storage (images, uploads)
+- **CloudFront**: CDN for static assets
+- **Route 53**: DNS management
+
+## Monitoring & Logging
+
+- Application logs in `logs/` directory
+- Logback configuration for structured logging
+- Error tracking and monitoring
+- Performance monitoring
+
+## Security Considerations
+
+- Environment variables for secrets
+- HTTPS in production
+- Proper CORS configuration
+- Database connection security
+- File upload validation
+  description:
+  globs:
+  alwaysApply: false
+
+---

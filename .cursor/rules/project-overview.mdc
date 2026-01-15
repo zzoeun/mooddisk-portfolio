@@ -1,0 +1,63 @@
+# AstroMood Project Overview
+
+## Project Description
+
+AstroMood is a full-stack application combining emotion diary and anonymous counseling features. The project uses a monorepo structure with Spring Boot backend, React web frontend, and React Native mobile app.
+
+## Architecture
+
+- **Backend**: Spring Boot 3.4.1 with Java 17, MariaDB, JPA, JWT authentication
+- **Frontend**: React 19 with TypeScript, Tailwind CSS, Radix UI components (웹)
+- **Mobile**: React Native 0.74.5 with Expo SDK 51, TypeScript (모바일)
+- **Shared Packages**: `packages/` - 웹/모바일 공유 로직 (Yarn Workspaces)
+- **State Management**: React Query v5 for data fetching and caching
+- **Build System**: Gradle + Yarn Workspaces
+- **Deployment**: AWS EC2/S3/RDS
+
+## Key Features
+
+- Emotion diary with sentiment analysis
+- Anonymous counseling with profanity filtering
+- OAuth authentication (Google, Kakao, Apple)
+- Challenge system with payments
+- User achievements and levels
+- Real-time notifications
+- Cross-platform support (웹/모바일)
+- React Query for optimized data fetching and caching
+- Performance-optimized tab navigation
+
+## Project Structure
+
+### Monorepo Layout
+
+- **Backend**: Spring Boot (Java)
+- **Shared Packages**: `packages/` - 공통 로직
+- **Frontend**: `src/main/frontend/` - React 웹 앱
+- **Mobile**: `src/main/mobile/` - React Native 앱
+
+### Key Files
+
+- Main entry point: [MoodApplication.java](mdc:src/main/java/com/astro/mood/MoodApplication.java)
+- Frontend entry: [App.tsx](mdc:src/main/frontend/src/App.tsx)
+- Mobile entry: [App.tsx](mdc:src/main/mobile/App.tsx)
+- Build configuration: [build.gradle](mdc:build.gradle)
+- Root package: [package.json](mdc:package.json)
+- Shared packages: [packages/](mdc:packages/) - 웹/모바일 공유 로직
+
+## Development Guidelines
+
+- Use Korean comments and documentation for business logic
+- Follow Spring Boot best practices for backend
+- Use TypeScript for all frontend components
+- Implement proper error handling and validation
+- Use JWT for authentication
+- Follow RESTful API design principles
+- Use React Query for data fetching and caching
+- Follow Yarn Workspaces for package management
+- Use named exports for all components (no default exports)
+- Implement proper memoization for performance optimization
+  description:
+  globs:
+  alwaysApply: false
+
+---

@@ -1,0 +1,334 @@
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+
+def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+
+static def versionToNumber(major, minor, patch) {
+  return patch * 100 + minor * 10000 + major * 1000000
+}
+
+def getRNVersion() {
+  def version = providers.exec {
+    workingDir(projectDir)
+    commandLine("node", "-e", "console.log(require('react-native/package.json').version);")
+  }.standardOutput.asText.get().trim()
+
+  def coreVersion = version.split("-")[0]
+  def (major, minor, patch) = coreVersion.tokenize('.').collect { it.toInteger() }
+
+  return versionToNumber(
+      major,
+      minor,
+      patch
+  )
+}
+def rnVersion = getRNVersion()
+
+/**
+ * This is the configuration block to customize your React Native Android app.
+ * By default you don't need to apply any configuration, just uncomment the lines you need.
+ */
+react {
+    entryFile = file(["node", "-e", "require('expo/scripts/resolveAppEntry')", projectRoot, "android", "absolute"].execute(null, rootDir).text.trim())
+    reactNativeDir = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
+    hermesCommand = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath() + "/sdks/hermesc/%OS-BIN%/hermesc"
+    codegenDir = new File(["node", "--print", "require.resolve('@react-native/codegen/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
+
+    // Use Expo CLI to bundle the app, this ensures the Metro config
+    // works correctly with Expo projects.
+    cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
+    bundleCommand = "export:embed"
+
+    /* Folders */
+    //   The root of your project, i.e. where "package.json" lives. Default is '..'
+    // root = file("../")
+    //   The folder where the react-native NPM package is. Default is ../node_modules/react-native
+    // reactNativeDir = file("../node_modules/react-native")
+    //   The folder where the react-native Codegen package is. Default is ../node_modules/@react-native/codegen
+    // codegenDir = file("../node_modules/@react-native/codegen")
+
+    /* Variants */
+    //   The list of variants to that are debuggable. For those we're going to
+    //   skip the bundling of the JS bundle and the assets. By default is just 'debug'.
+    //   If you add flavors like lite, prod, etc. you'll have to list your debuggableVariants.
+    // debuggableVariants = ["liteDebug", "prodDebug"]
+
+    /* Bundling */
+    //   A list containing the node command and its flags. Default is just 'node'.
+    // nodeExecutableAndArgs = ["node"]
+
+    //
+    //   The path to the CLI configuration file. Default is empty.
+    // bundleConfig = file(../rn-cli.config.js)
+    //
+    //   The name of the generated asset file containing your JS bundle
+    // bundleAssetName = "MyApplication.android.bundle"
+    //
+    //   The entry file for bundle generation. Default is 'index.android.js' or 'index.js'
+    // entryFile = file("../js/MyApplication.android.js")
+    //
+    //   A list of extra flags to pass to the 'bundle' commands.
+    //   See https://github.com/react-native-community/cli/blob/main/docs/commands.md#bundle
+    // extraPackagerArgs = []
+
+    /* Hermes Commands */
+    //   The hermes compiler command to run. By default it is 'hermesc'
+    // hermesCommand = "$rootDir/my-custom-hermesc/bin/hermesc"
+    //
+    //   The list of flags to pass to the Hermes compiler. By default is "-O", "-output-source-map"
+    // hermesFlags = ["-O", "-output-source-map"]
+
+    if (rnVersion >= versionToNumber(0, 75, 0)) {
+        /* Autolinking */
+        autolinkLibrariesWithApp()
+    }
+}
+
+/**
+ * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
+ */
+def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInReleaseBuilds') ?: false).toBoolean()
+
+/**
+ * The preferred build flavor of JavaScriptCore (JSC)
+ *
+ * For example, to use the international variant, you can use:
+ * `def jscFlavor = 'org.webkit:android-jsc-intl:+'`
+ *
+ * The international variant includes ICU i18n library and necessary data
+ * allowing to use e.g. `Date.toLocaleString` and `String.localeCompare` that
+ * give correct results when using with locales other than en-US. Note that
+ * this variant is about 6MiB larger per architecture than default.
+ */
+def jscFlavor = 'org.webkit:android-jsc:+'
+
+android {
+    ndkVersion rootProject.ext.ndkVersion
+
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk rootProject.ext.compileSdkVersion
+
+    namespace 'com.mooddisk.mobile'
+    defaultConfig {
+        applicationId 'com.mooddisk.mobile'
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0.2"
+        
+        // Exclude 32-bit architectures for 16KB page size compatibility
+        // Only 64-bit architectures (arm64-v8a, x86_64) support 16KB alignment
+        ndk {
+            abiFilters 'arm64-v8a', 'x86_64'
+        }
+    }
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            // Caution! In production, you need to generate your own keystore file.
+            // see https://reactnative.dev/docs/signed-apk-android.
+            signingConfig signingConfigs.debug
+            shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
+            minifyEnabled enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
+        }
+    }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
+        }
+    }
+}
+
+// Apply static values from `gradle.properties` to the `android.packagingOptions`
+// Accepts values in comma delimited lists, example:
+// android.packagingOptions.pickFirsts=/LICENSE,**/picasa.ini
+["pickFirsts", "excludes", "merges", "doNotStrip"].each { prop ->
+    // Split option: 'foo,bar' -> ['foo', 'bar']
+    def options = (findProperty("android.packagingOptions.$prop") ?: "").split(",");
+    // Trim all elements in place.
+    for (i in 0..<options.size()) options[i] = options[i].trim();
+    // `[] - ""` is essentially `[""].filter(Boolean)` removing all empty strings.
+    options -= ""
+
+    if (options.length > 0) {
+        println "android.packagingOptions.$prop += $options ($options.length)"
+        // Ex: android.packagingOptions.pickFirsts += '**/SCCS/**'
+        options.each {
+            android.packagingOptions[prop] += it
+        }
+    }
+}
+
+dependencies {
+    // The version of react-native is set by the React Native Gradle Plugin
+    implementation("com.facebook.react:react-android")
+
+    def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
+    def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";
+    def isWebpAnimatedEnabled = (findProperty('expo.webp.animated') ?: "") == "true";
+
+    if (isGifEnabled) {
+        // For animated gif support
+        implementation("com.facebook.fresco:animated-gif:${reactAndroidLibs.versions.fresco.get()}")
+    }
+
+    if (isWebpEnabled) {
+        // For webp support
+        implementation("com.facebook.fresco:webpsupport:${reactAndroidLibs.versions.fresco.get()}")
+        if (isWebpAnimatedEnabled) {
+            // Animated webp support
+            implementation("com.facebook.fresco:animated-webp:${reactAndroidLibs.versions.fresco.get()}")
+        }
+    }
+
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation jscFlavor
+    }
+}
+
+if (rnVersion < versionToNumber(0, 75, 0)) {
+    apply from: new File(["node", "--print", "require.resolve('@react-native-community/cli-platform-android/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim(), "../native_modules.gradle");
+    applyNativeModulesAppBuildGradle(project)
+}
+
+// Task to replace React Native's 4KB-aligned libc++_shared.so with NDK r28's 16KB-aligned version
+afterEvaluate {
+    def ndkVersion = android.ndkVersion ?: rootProject.ext.ndkVersion
+    def androidHome = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
+    def ndkPath = "${androidHome}/ndk/${ndkVersion}"
+    def osName = System.getProperty("os.name").toLowerCase()
+    def osDir = osName.contains("windows") ? "windows" : (osName.contains("mac") ? "darwin" : "linux") + "-x86_64"
+    
+    def ndkLibcxxPaths = [
+        "armeabi-v7a": "${ndkPath}/toolchains/llvm/prebuilt/${osDir}/sysroot/usr/lib/arm-linux-androideabi/libc++_shared.so",
+        "arm64-v8a": "${ndkPath}/toolchains/llvm/prebuilt/${osDir}/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so",
+        "x86": "${ndkPath}/toolchains/llvm/prebuilt/${osDir}/sysroot/usr/lib/i686-linux-android/libc++_shared.so",
+        "x86_64": "${ndkPath}/toolchains/llvm/prebuilt/${osDir}/sysroot/usr/lib/x86_64-linux-android/libc++_shared.so"
+    ]
+    
+    // Replace libc++_shared.so BEFORE signing (in packageReleaseBundle task's doLast)
+    // This ensures the AAB signature remains valid
+    tasks.matching { it.name == "packageReleaseBundle" }.configureEach { packageTask ->
+        packageTask.doLast {
+            // Get AAB file from task outputs
+            def aabFile = packageTask.outputs.files.find { it.name.endsWith(".aab") }
+            if (!aabFile || !aabFile.exists()) {
+                // Fallback: try standard output location
+                aabFile = new File(project.buildDir, "outputs/bundle/release/app-release.aab")
+                if (!aabFile.exists()) {
+                    aabFile = new File(project.buildDir, "outputs/bundle/release/app.aab")
+                }
+                if (!aabFile.exists()) {
+                    def outputsDir = new File(project.buildDir, "outputs/bundle/release")
+                    if (outputsDir.exists()) {
+                        aabFile = outputsDir.listFiles().find { it.name.endsWith(".aab") }
+                    }
+                }
+            }
+            
+            if (aabFile && aabFile.exists()) {
+                println "Replacing libc++_shared.so with 16KB-aligned NDK r28 version in ${aabFile.name} (before signing)..."
+                
+                def tempDir = new File(project.buildDir, "aab_libcxx_replace")
+                tempDir.deleteDir()
+                tempDir.mkdirs()
+                
+                // Extract AAB
+                exec {
+                    workingDir tempDir
+                    commandLine "unzip", "-q", aabFile.absolutePath, "-d", "."
+                }
+                
+                // Replace libc++_shared.so with NDK r28 version for each architecture
+                // Only process 64-bit architectures (32-bit are excluded for 16KB compatibility)
+                def supportedArchs = ["arm64-v8a", "x86_64"]
+                ndkLibcxxPaths.each { arch, ndkLibPath ->
+                    if (supportedArchs.contains(arch)) {
+                        def ndkLib = new File(ndkLibPath)
+                        if (ndkLib.exists()) {
+                            def targetLib = new File(tempDir, "base/lib/${arch}/libc++_shared.so")
+                            if (targetLib.exists()) {
+                                println "  Replacing ${arch}/libc++_shared.so with NDK r28 version..."
+                                targetLib.delete()
+                                targetLib.parentFile.mkdirs()
+                                targetLib << ndkLib.bytes
+                            } else {
+                                println "  Warning: ${arch}/libc++_shared.so not found in AAB"
+                            }
+                        } else {
+                            println "  Warning: NDK libc++_shared.so not found for ${arch} at ${ndkLibPath}"
+                        }
+                    }
+                }
+                
+                // Remove 32-bit architectures if they exist (should not exist after ndk.abiFilters)
+                ["armeabi-v7a", "x86"].each { arch ->
+                    def archDir = new File(tempDir, "base/lib/${arch}")
+                    if (archDir.exists()) {
+                        println "  Removing 32-bit architecture ${arch} from AAB (not supported for 16KB page size)..."
+                        archDir.deleteDir()
+                    }
+                }
+                
+                // Re-align all native libraries to 16KB using Python script
+                def pythonScript = new File(project.rootDir, "realign_elf.py")
+                if (pythonScript.exists()) {
+                    println "  Re-aligning all native libraries to 16KB..."
+                    supportedArchs.each { arch ->
+                        def archLibDir = new File(tempDir, "base/lib/${arch}")
+                        if (archLibDir.exists()) {
+                            archLibDir.listFiles().each { libFile ->
+                                if (libFile.name.endsWith(".so")) {
+                                    try {
+                                        exec {
+                                            commandLine "python3", pythonScript.absolutePath, libFile.absolutePath
+                                            ignoreExitValue true
+                                        }
+                                    } catch (Exception e) {
+                                        println "    Warning: Could not re-align ${libFile.name}: ${e.message}"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    println "  Finished re-aligning native libraries"
+                } else {
+                    println "  ⚠️  WARNING: realign_elf.py not found, skipping library re-alignment"
+                    println "  ⚠️  React Native 0.74.5 prebuilt libraries are 4KB aligned."
+                    println "  ⚠️  This will cause Google Play Console 16KB page size errors."
+                }
+                
+                // Recreate AAB
+                def newAabFile = new File(aabFile.parentFile, "${aabFile.name}.new")
+                exec {
+                    workingDir tempDir
+                    commandLine "zip", "-q", "-r", newAabFile.absolutePath, "."
+                }
+                
+                // Replace original AAB (before signing)
+                aabFile.delete()
+                newAabFile.renameTo(aabFile)
+                
+                tempDir.deleteDir()
+                println "Finished replacing libc++_shared.so with 16KB-aligned versions (AAB will be signed next)"
+            } else {
+                println "Warning: AAB file not found, skipping libc++_shared.so replacement"
+            }
+        }
+    }
+}

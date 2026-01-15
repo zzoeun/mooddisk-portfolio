@@ -1,0 +1,54 @@
+# Backend Architecture Guidelines
+
+## Package Structure
+
+- **Controller Layer**: `com.astro.mood.web.controller` - REST API endpoints
+- **Service Layer**: `com.astro.mood.service` - Business logic implementation
+- **Repository Layer**: `com.astro.mood.data.repository` - Data access layer
+- **Entity Layer**: `com.astro.mood.data.entity` - JPA entities
+- **DTO Layer**: `com.astro.mood.web.dto` - Data transfer objects
+- **Security**: `com.astro.mood.security` - JWT and OAuth configuration
+
+## Key Components
+
+- **Main Application**: [MoodApplication.java](mdc:src/main/java/com/astro/mood/MoodApplication.java)
+- **JWT Configuration**: [JWTUtil.java](mdc:src/main/java/com/astro/mood/security/jwt/JWTUtil.java)
+- **OAuth Configuration**: [OauthLoginFilter.java](mdc:src/main/java/com/astro/mood/security/jwt/OauthLoginFilter.java)
+
+## Development Patterns
+
+- Use `@RestController` for API endpoints
+- Implement proper exception handling with `@ControllerAdvice`
+- Use `@Service` for business logic
+- Use `@Repository` for data access
+- Use `@Entity` for JPA models
+- Use `@Dto` for API request/response objects
+
+## Security Guidelines
+
+- Implement JWT token validation
+- Use OAuth2 for social login (Google, Kakao)
+- Implement proper CORS configuration
+- Use Spring Security for authentication/authorization
+- Validate all input data with `@Valid`
+
+## Database Guidelines
+
+- Use MariaDB as primary database
+- Implement proper JPA relationships
+- Use `@CreatedDate` and `@LastModifiedDate` for auditing
+- Implement soft delete with `deletedAt` column
+- Use proper indexing for performance
+
+## API Design
+
+- Follow RESTful conventions
+- Use proper HTTP status codes
+- Implement pagination for list endpoints
+- Use consistent response format with `ApiResponse<T>`
+- Implement proper error handling with `CustomException`
+  description:
+  globs:
+  alwaysApply: false
+
+---

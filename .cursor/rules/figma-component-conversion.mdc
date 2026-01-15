@@ -1,0 +1,299 @@
+# React to Figma Component Conversion Rules
+
+## Package Structure
+
+- **Component Layer**: Figma Components - Reusable UI components
+- **Style Layer**: Figma Variables - Design tokens and styles
+- **Layout Layer**: Auto Layout - Responsive and flexible layouts
+- **Structure Layer**: Frame Hierarchy - Component organization
+
+## Key Components
+
+- **Main Component**: Component with same name as React component
+- **Style Variables**: Color, radius, shadow, spacing variables
+- **Auto Layout**: Vertical/Horizontal layouts with proper constraints
+- **Component Slots**: Children props as Frame slots
+
+## Development Patterns
+
+- Convert React components to Figma Components
+- Use Auto Layout for responsive design
+- Apply Variables for consistent styling
+- Implement proper component hierarchy
+- Use semantic naming conventions
+
+## Style Guidelines
+
+- **Tailwind → Figma Mapping**:
+
+  - `rounded-lg` → `cornerRadius: 12`
+  - `shadow-2xl` → `shadow: (0,25,50,-12,0.25)`
+  - `flex flex-col` → `Auto Layout: Vertical, Gap=0, Fill container`
+  - `overflow-hidden` → `Clip content`
+  - `h-full` → `Height: Hug or Fill depending on parent`
+
+- **Color Variables**:
+
+  - `color/brand/purple-700` = `#663266`
+  - `color/brand/purple-500` = `#9A66CC`
+  - `color/ui/border` = `#E8E8F2`
+  - `color/ui/status-bg` = `#F6F3FF`
+  - `color/ui/status-border` = `#E8E1FF`
+
+- **Size Variables**:
+  - `radius/lg` = `12`
+  - `shadow/2xl` = `(0,25,50,-12,0.25)`
+
+## Structure Guidelines
+
+- **Top-level div** → Frame (Component, Auto Layout applied)
+- **children props** → Frame inner slots (Auto Layout with Hug)
+- **Header/TitleBar/StatusBar** → Separate Frames with Auto Layout, colors/borders/gradients
+- **React component name** = Figma Component name
+
+## Text Guidelines
+
+- `text-sm` → `13px`
+- `text-base` → `15px`
+- `font-bold` → `700 weight`
+- Colors mapped to Variables
+
+## Output Requirements
+
+- Always create top-level as "Component"
+- Internal Auto Layout-based responsive settings
+- Variables applied styles bound for reuse in panel
+- Summary of applied Variables and Components after completion
+
+## Global Rules
+
+- 모든 Tailwind 스타일은 고정된 Figma Variable로 변환할 것
+  - rounded-lg → cornerRadius 12
+  - shadow-2xl → shadow/2xl
+  - flex flex-col → Auto Layout Vertical, gap=0
+  - text-sm → 13px
+  - text-base → 15px
+  - font-bold → weight 700
+- 색상은 반드시 아래 Variables에 매핑할 것:
+  - color/brand/purple-700 = #663266
+  - color/brand/purple-500 = #9A66CC
+  - color/ui/border = #E8E8F2
+- React 컴포넌트 이름 = Figma Component 이름
+- 항상 Component로 내보내고 Auto Layout 설정 포함
+
+## Example
+
+- Given `WindowFrame.tsx`, create Figma Component "WindowFrame":
+  - TitleBar (Purple gradient)
+  - Content (White padding area)
+  - StatusBar (Light purple + border)
+    Three parts organized with Auto Layout
+
+---
+
+# Figma Dev Mode MCP Integration Rules
+
+## MCP Command Usage
+
+### 1. Code Generation from Figma
+
+```bash
+# Generate React code from selected Figma frame
+mcp_Figma_Dev_Mode_MCP_get_code
+
+# Get visual reference of Figma frame
+mcp_Figma_Dev_Mode_MCP_get_image
+
+# Extract Figma design variables
+mcp_Figma_Dev_Mode_MCP_get_variable_defs
+```
+
+### 2. Figma to React Conversion Rules
+
+#### 2.1 Output Format
+
+- **Framework**: React + TypeScript
+- **Styling**: Tailwind CSS
+- **Component Structure**: Functional components with proper typing
+- **Props Interface**: Always define TypeScript interfaces
+
+#### 2.2 Design System Compliance
+
+- **Primary Buttons**: `#A066FF` (포인트 네온보라)
+- **Secondary Buttons**: `#9A66CC` 계열 (라이트보라)
+- **Danger Actions**: `#FF4D6A` (위험색)
+- **Layout Wrapper**: All pages must work within `DesktopLayout` component
+
+#### 2.3 File Organization
+
+```
+src/
+├── components/
+│   ├── common/          # Shared components (buttons, cards, inputs)
+│   ├── desk/           # Desktop-specific components
+│   ├── mobile/         # Mobile-specific components
+│   └── ui/             # Basic UI elements
+├── layout/
+│   ├── common/         # Shared layouts
+│   ├── desk/           # Desktop layouts (headers, sidebars, toolbars)
+│   └── mobile/         # Mobile layouts
+└── pages/
+    ├── desk/           # Desktop pages
+    └── mobile/         # Mobile pages
+```
+
+### 3. Code Quality Standards
+
+#### 3.1 Component Structure
+
+```tsx
+// Always use TypeScript interfaces
+interface ComponentProps {
+  // Props definition
+}
+
+// Use functional components with proper typing
+const Component: React.FC<ComponentProps> = ({ prop1, prop2 }) => {
+  // Component logic
+  return (
+    // JSX with Tailwind classes
+  );
+};
+
+export default Component;
+```
+
+#### 3.2 Tailwind CSS Guidelines
+
+- Use arbitrary values for exact Figma measurements: `w-[123px]`, `h-[45px]`
+- Apply responsive design: `sm:`, `md:`, `lg:`, `xl:` prefixes
+- Use semantic color names when possible, but prefer exact hex values from Figma
+- Implement proper hover/focus states for interactive elements
+
+#### 3.3 Layout Correction Rules
+
+- **Alignment Issues**: Use `justify-center`, `items-center`, `text-center`
+- **Spacing Imbalances**: Adjust with `gap-`, `p-`, `m-` utilities
+- **Flex/Grid**: Convert Figma auto-layout to appropriate CSS layout
+- **Responsive**: Ensure mobile-first approach with breakpoint considerations
+
+### 4. Figma Variable Integration
+
+#### 4.1 Variable Usage
+
+- **Colors**: Use Figma color variables when available
+- **Typography**: Apply Figma text styles
+- **Spacing**: Use Figma spacing tokens
+- **Component Properties**: Maintain Figma component structure
+
+#### 4.2 Style Token Preservation
+
+- Keep Figma variable names in comments
+- Use semantic naming for CSS classes
+- Maintain design system consistency
+- Document any deviations from Figma specs
+
+### 5. Component Development Workflow
+
+#### 5.1 When Creating from Figma
+
+1. Analyze Figma frame structure
+2. Identify reusable components
+3. Create component hierarchy
+4. Apply exact styling from Figma
+5. Test responsive behavior
+6. Integrate with existing codebase
+
+#### 5.2 Component Naming Convention
+
+- **PascalCase** for component names
+- **camelCase** for props and variables
+- **kebab-case** for CSS classes (when not using Tailwind)
+- **Descriptive names** that reflect component purpose
+
+### 6. Integration with Existing Codebase
+
+#### 6.1 DesktopLayout Integration
+
+```tsx
+// All pages must work within DesktopLayout
+import DesktopLayout from "../layout/DesktopLayout";
+
+const PageComponent: React.FC = () => {
+  return <DesktopLayout>{/* Page content */}</DesktopLayout>;
+};
+```
+
+#### 6.2 Existing Component Usage
+
+- Leverage existing components from `src/components/`
+- Maintain consistency with current design patterns
+- Follow established prop interfaces
+- Use shared utilities and hooks
+
+### 7. Quality Assurance
+
+#### 7.1 Visual Fidelity
+
+- Compare generated code with Figma design
+- Ensure pixel-perfect alignment
+- Verify color accuracy
+- Test responsive behavior
+
+#### 7.2 Code Quality
+
+- TypeScript strict mode compliance
+- Proper error handling
+- Accessibility considerations
+- Performance optimization
+
+### 8. Best Practices
+
+#### 8.1 Performance
+
+- Use React.memo for expensive components
+- Implement proper key props for lists
+- Optimize re-renders with useCallback/useMemo
+- Lazy load components when appropriate
+
+#### 8.2 Accessibility
+
+- Include proper ARIA labels
+- Ensure keyboard navigation
+- Maintain color contrast ratios
+- Provide alternative text for images
+
+#### 8.3 Maintainability
+
+- Write self-documenting code
+- Use consistent naming conventions
+- Implement proper error boundaries
+- Follow DRY principles
+
+### 9. Common Patterns
+
+```tsx
+// Component template
+interface ComponentProps {
+  // Define props
+}
+
+const Component: React.FC<ComponentProps> = ({ prop1, prop2 }) => {
+  return <div className="[Figma-exact-classes]">{/* Component content */}</div>;
+};
+
+export default Component;
+```
+
+---
+
+⚠️ **Rules apply to all code files uniformly.**
+When given a file, just say "이 코드를 Figma에 구현해" and automatically draw following the above global rules.
+
+**Figma Dev Mode MCP 사용 시:**
+
+1. 선택된 Figma 프레임에서 코드 생성
+2. 정확한 색상/폰트/레이아웃 반영
+3. 디자인 시스템 규칙 준수
+4. 컴포넌트 분리 및 재사용성 고려
+5. 기존 코드베이스와의 통합

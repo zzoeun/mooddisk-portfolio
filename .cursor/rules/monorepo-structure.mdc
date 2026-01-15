@@ -1,0 +1,167 @@
+# Monorepo Structure Guidelines
+
+## Package Organization
+
+### Shared Packages (`packages/`)
+
+- **@mooddisk/types**: 공통 타입 정의 (웹/모바일 공유)
+- **@mooddisk/api**: API 클라이언트 (웹/모바일 공유)
+- **@mooddisk/utils**: 유틸리티 함수 (웹/모바일 공유)
+- **@mooddisk/mappers**: 데이터 매핑 (웹/모바일 공유)
+- **@mooddisk/hooks**: 커스텀 훅 및 React Query 훅 (웹/모바일 공유)
+
+### Platform-Specific Apps
+
+- **Frontend**: `src/main/frontend/` - React 웹 앱
+- **Mobile**: `src/main/mobile/` - React Native 앱
+
+## Package Dependencies
+
+### Dependency Rules
+
+- 패키지는 `file:../` 경로로 참조
+- 순환 의존성 금지
+- 플랫폼별 의존성은 각 앱에서 관리
+
+### Build Order
+
+1. `@mooddisk/types` (기본 타입)
+2. `@mooddisk/utils` (유틸리티)
+3. `@mooddisk/mappers` (매핑)
+4. `@mooddisk/api` (API 클라이언트)
+5. `@mooddisk/hooks` (훅 및 React Query 훅)
+6. 플랫폼 앱들
+
+### Package Structure Details
+
+#### @mooddisk/types
+
+- **src/api/**: API 응답 타입들 (ApiChallenge, ApiDiary, ApiCounseling, ApiUser)
+- **src/domain/**: 도메인 타입들 (ChallengeEntry, DiaryEntry, CounselingEntry, UserEntry)
+- **src/index.ts**: 모든 타입 통합 export
+- **dist/**: 컴파일된 타입 정의 파일들
+
+#### @mooddisk/mappers
+
+- **src/**: TypeScript 소스 파일들
+- **src/index.ts**: 모든 매퍼 함수 통합 export
+- **dist/**: 컴파일된 JavaScript 파일들
+- API 응답을 도메인 객체로 변환하는 매퍼 함수들
+
+#### @mooddisk/hooks
+
+- **src/common/**: 공통 훅들 (useErrorHandler, useCurrentTime 등)
+- **src/queries/**: React Query 훅들 (useUserInfo, useDiaryCalendar 등)
+- **src/counseling/**: 상담 관련 훅들
+- **src/index.ts**: 모든 훅 통합 export
+- **dist/**: 컴파일된 JavaScript 파일들
+
+## Development Commands
+
+### Root Level
+
+- `yarn build:packages` - 모든 패키지 빌드
+- `yarn build:packages:watch` - 패키지 개발 모드 (자동 빌드)
+- `yarn dev:frontend` - 웹 개발 서버 (패키지 자동 빌드)
+- `yarn dev:mobile` - 모바일 개발 서버
+- `yarn dev:packages` - 패키지만 개발 모드
+- `yarn clean` - 모든 빌드 파일 정리
+- `yarn clean:packages` - 패키지 dist 파일만 정리
+
+### Package Level
+
+- `yarn workspace @mooddisk/types build`
+- `yarn workspace @mooddisk/types dev` (감시 모드)
+- `yarn workspace @mooddisk/types clean` (dist 정리)
+- `yarn workspace @mooddisk/types type-check` (타입 체크만)
+- `yarn workspace frontend start`
+- `yarn workspace mobile start`
+
+## File Structure
+
+```
+astromood/
+├── packages/                    # 공유 패키지들
+│   ├── types/                  # 타입 정의
+│   ├── api/                    # API 클라이언트
+│   ├── utils/                  # 유틸리티 함수
+│   ├── mappers/                # 데이터 매핑
+│   └── hooks/                  # 커스텀 훅 및 React Query 훅
+│       ├── src/
+│       │   ├── common/         # 공통 훅들
+│       │   ├── queries/        # React Query 훅들
+│       │   ├── counseling/     # 상담 관련 훅들
+│       │   └── index.ts        # 통합 export
+│       └── dist/               # 컴파일된 파일들
+├── src/main/frontend/          # React 웹 앱
+├── src/main/mobile/            # React Native 앱
+├── package.json                # 루트 워크스페이스 설정
+└── .cursor/rules/              # 개발 가이드라인
+```
+
+## Package Development Guidelines
+
+### TypeScript Configuration
+
+- 각 패키지는 독립적인 `tsconfig.json` 보유
+- **웹 환경**: `dist/` 폴더에 컴파일된 결과물 저장
+- **모바일 환경**: TypeScript 파일 직접 사용 (Metro 번들러가 컴파일)
+- `.d.ts` 파일로 타입 정의 제공
+
+### Export Strategy
+
+- **웹**: `index.ts`에서 모든 public API export
+- **모바일**: `index.native.ts`에서 모든 public API export
+- 내부 구현은 export하지 않음
+- 플랫폼별 어댑터 패턴 사용
+
+### Version Management
+
+- 패키지 버전은 `1.0.0` 형식 사용
+- breaking change 시 major 버전 업
+- 의존성은 `file:../` 경로 사용
+
+## Platform-Specific Considerations
+
+### Web (Frontend)
+
+- React 19 + TypeScript
+- Tailwind CSS + Radix UI
+- styled-components
+- 브라우저 API 사용 (localStorage, window)
+
+### Mobile (React Native)
+
+- React Native 0.74.5 + Expo
+- 네이티브 모듈 사용
+- AsyncStorage 사용
+- 플랫폼별 컴포넌트 분리
+
+## Best Practices
+
+### Code Sharing
+
+- 비즈니스 로직은 공유 패키지에
+- UI 컴포넌트는 플랫폼별로 분리
+- 타입 정의는 공유 패키지에
+
+### Development Workflow
+
+- **웹 개발**: `yarn dev:frontend` (패키지 자동 빌드)
+- **모바일 개발**: `yarn dev:mobile` (패키지 빌드 불필요)
+- **패키지 개발**: `yarn dev:packages` (패키지만 감시 모드)
+- 패키지 변경 시 `yarn build:packages` 실행
+- 플랫폼별 개발은 각각 독립적으로
+- 공통 기능은 패키지로 추출
+
+### Testing Strategy
+
+- 각 패키지별 단위 테스트
+- 통합 테스트는 앱 레벨에서
+- Mock을 사용한 플랫폼별 테스트
+
+  description: Monorepo 구조와 패키지 관리 가이드라인
+  globs:
+  alwaysApply: false
+
+---

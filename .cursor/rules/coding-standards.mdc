@@ -1,0 +1,675 @@
+# Coding Standards & Best Practices
+
+## General Guidelines
+
+- Use Korean comments for business logic and complex algorithms
+- Use English for technical terms, variable names, and API endpoints
+- Follow consistent naming conventions
+- Write self-documenting code
+- Implement proper error handling
+- Add meaningful commit messages
+
+## Java Backend Standards
+
+- Use Lombok annotations to reduce boilerplate
+- Implement proper validation with `@Valid`
+- Use `@Slf4j` for logging
+- Follow Spring Boot conventions
+- Use proper exception handling with custom exceptions
+- Implement proper JPA relationships
+- Use `@Transactional` appropriately
+
+## TypeScript/React Standards
+
+- Use TypeScript for all components and functions
+- Implement proper type definitions
+- Use functional components with hooks
+- Follow React best practices
+- Use proper prop validation
+- Implement error boundaries
+- Use proper state management patterns
+
+## API Design Standards
+
+- Follow RESTful conventions
+- Use consistent response formats
+- Implement proper HTTP status codes
+- Use meaningful endpoint names
+- Implement proper pagination
+- Use proper request/response validation
+
+## Database Standards
+
+- Use meaningful table and column names
+- Implement proper indexing
+- Use foreign key constraints
+- Implement soft delete patterns
+- Use proper data types
+- Follow normalization principles
+
+## Security Standards
+
+- Validate all user inputs
+- Implement proper authentication
+- Use HTTPS in production
+- Implement proper CORS policies
+- Use environment variables for secrets
+- Implement proper session management
+
+## Testing Standards
+
+- Write unit tests for business logic
+- Implement integration tests for APIs
+- Use proper test naming conventions
+- Mock external dependencies
+- Test error scenarios
+- Maintain good test coverage
+
+## Performance Standards
+
+- Implement proper caching strategies
+- Use pagination for large datasets
+- Optimize database queries
+- Implement proper loading states
+- Use lazy loading where appropriate
+- Monitor and optimize bundle sizes
+
+## Production-Ready Code Standards
+
+- **NEVER use localStorage for business logic state**
+- **NEVER write temporary/test-only code**
+- **ALWAYS implement production-ready solutions**
+- Use server state as the single source of truth
+- Implement proper error handling for all scenarios
+- Use real-time updates (WebSocket/SSE) for critical state changes
+- Design APIs to return complete and accurate state
+- Implement proper validation on both client and server
+- Use proper status fields in database tables
+- Maintain data consistency across related tables
+- Never store sensitive business data in localStorage
+- Use proper authentication and authorization
+- Implement proper loading and error states
+- Use transactions for critical operations
+- Optimize for production performance from the start
+
+## API Function Mapping Guidelines
+
+### 1. API 함수에서 직접 매핑 처리
+
+- **API 함수에서 매핑**: API 응답을 도메인 타입으로 변환하는 매핑을 API 함수 내부에서 처리
+- **컴포넌트에서 매핑 금지**: 컴포넌트에서 직접 매핑 함수를 호출하지 않음
+- **일관된 반환 타입**: 모든 API 함수는 도메인 타입을 반환
+
+### 2. 매핑 방식 예시
+
+```typescript
+// ✅ 올바른 방식: API 함수에서 매핑
+export const getAllChallenges = async (): Promise<ChallengeListEntry[]> => {
+  const response = await instance.get<ChallengeListResponse[]>("/challenge");
+  return response.data.map(mapApiChallengeToChallengeEntry); // ★ 여기서 매핑
+};
+
+// ✅ 올바른 방식: 컴포넌트에서 사용
+const challenges = await getAllChallenges(); // 이미 도메인 타입으로 변환됨
+
+// ❌ 잘못된 방식: 컴포넌트에서 매핑
+const apiChallenges = await getAllChallenges();
+const transformedChallenges = apiChallenges.map(
+  mapApiChallengeToChallengeEntry
+);
+```
+
+### 3. 매퍼 함수 위치
+
+- **매퍼 파일**: `src/mappers/` 폴더에 도메인별로 분리
+- **매퍼 함수명**: `mapApi[Type]To[Domain]Entry` 형식 (TypeScript Naming Conventions 참조)
+- **매퍼 export**: `src/mappers/index.ts`에서 통합 export
+
+### 4. 매퍼 함수 예시
+
+```typescript
+// src/mappers/challengeMapper.ts
+export const mapApiChallengeToChallengeEntry = (
+  apiChallenge: ChallengeListResponse
+): ChallengeListEntry => {
+  return {
+    id: apiChallenge.challengeIdx.toString(),
+    title: apiChallenge.title,
+    description: apiChallenge.description,
+    // ... 변환 로직
+  };
+};
+```
+
+## Named Export Guidelines
+
+### 1. 모든 컴포넌트는 Named Export 사용
+
+- **default export 금지**: 모든 React 컴포넌트는 named export 사용
+- **Tree Shaking 최적화**: 번들 크기 최적화를 위해 named export 필수
+- **React Native 호환성**: React Native에서 더 나은 호환성 제공
+
+### 2. Named Export 방식
+
+```typescript
+// ✅ 올바른 방식: Named Export
+export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge }) => {
+  return (
+    <div className="challenge-card">
+      <h3>{challenge.title}</h3>
+    </div>
+  );
+};
+
+// ❌ 잘못된 방식: Default Export
+export default function ChallengeCard({ challenge }: ChallengeCardProps) {
+  return (
+    <div className="challenge-card">
+      <h3>{challenge.title}</h3>
+    </div>
+  );
+}
+```
+
+### 3. Import 방식
+
+```typescript
+// ✅ 올바른 방식: Named Import
+import { ChallengeCard } from "../../components/features/challenge/ChallengeCard";
+
+// ❌ 잘못된 방식: Default Import
+import ChallengeCard from "../../components/features/challenge/ChallengeCard";
+```
+
+### 4. Index 파일에서 Export
+
+```typescript
+// ✅ 올바른 방식: index.ts에서 named export
+// src/components/features/challenge/index.ts
+export { ChallengeCard } from "./ChallengeCard";
+export { ChallengeDetail } from "./ChallengeDetail";
+export { ChallengeList } from "./ChallengeList";
+
+// 사용하는 곳
+import {
+  ChallengeCard,
+  ChallengeDetail,
+} from "../../components/features/challenge";
+```
+
+### 5. 함수와 유틸리티도 Named Export
+
+```typescript
+// ✅ 올바른 방식: 함수도 named export
+export const formatDate = (date: Date): string => {
+  return date.toLocaleDateString("ko-KR");
+};
+
+export const validateEmail = (email: string): boolean => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
+// 사용하는 곳
+import { formatDate, validateEmail } from "../../utils/dateUtils";
+```
+
+### 6. TypeScript 타입도 Named Export
+
+```typescript
+// ✅ 올바른 방식: 타입도 named export
+export interface ChallengeEntry {
+  id: string;
+  title: string;
+  description: string;
+}
+
+export type ChallengeStatus = "ACTIVE" | "COMPLETED" | "FAILED";
+
+// 사용하는 곳
+import { ChallengeEntry, ChallengeStatus } from "../../types/domain/challenge";
+```
+
+### 7. 예외 상황
+
+- **페이지 컴포넌트**: 라우팅을 위해 default export 허용
+- **App.tsx**: React 앱 진입점이므로 default export 허용
+- **index.tsx**: React 앱 마운트를 위해 default export 허용
+
+```typescript
+// ✅ 허용되는 default export 예외
+// src/pages/web/ChallengeSection.tsx
+export default function ChallengeSection() {
+  // 페이지 컴포넌트
+}
+
+// src/App.tsx
+export default function App() {
+  // 앱 진입점
+}
+```
+
+## TypeScript Naming Conventions
+
+### Domain Type Naming Rules
+
+#### 1. **도메인 타입**: `[Domain]Entry`
+
+```typescript
+// ✅ 올바른 방식
+export interface DiaryEntry {
+  id: string;
+  content: string;
+  emotion: string;
+  emotionIdx: number;
+  date: string;
+  createdAt: string;
+  imageUrls: string[];
+}
+
+export interface ChallengeEntry {
+  participationIdx: number;
+  challengeIdx: number;
+  title: string;
+  description: string;
+  status: "ACTIVE" | "COMPLETED" | "FAILED";
+  progressDays: number;
+  isCompleted: boolean;
+  startedAt: string;
+  endedAt?: string;
+}
+
+export interface CounselingEntry {
+  id: string;
+  category: string;
+  title: string;
+  content: string;
+  author: string;
+  date: string;
+  views: number;
+  likes: number;
+  commentsCount: number;
+  comments: CommentEntry[];
+  isPopular: boolean;
+  isResolved?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  userIdx?: number;
+}
+
+export interface CommentEntry {
+  id: string;
+  author: string;
+  content: string;
+  date: string;
+  likes: number;
+  isAuthor?: boolean;
+  createdAt?: string;
+}
+```
+
+#### 2. **컴포넌트 Props**: `[Domain][Action]Props`
+
+```typescript
+// ✅ 올바른 방식
+export interface DiaryWriteProps {
+  newDiary: {
+    content: string;
+    emotion: string;
+    images?: string[];
+  };
+  onDiaryChange: (field: string, value: string | string[]) => void;
+  myChallenges: ChallengeEntry[];
+  emotions: Emotion[];
+  isEditing?: boolean;
+  selectedImageFiles?: File[];
+  setSelectedImageFiles?: React.Dispatch<React.SetStateAction<File[]>>;
+  removedImageUrls?: string[];
+  setRemovedImageUrls?: React.Dispatch<React.SetStateAction<string[]>>;
+  onModalChange?: (isOpen: boolean) => void;
+}
+
+export interface ChallengeJoinProps {
+  challenge: ChallengeEntry;
+  onJoin: (challengeId: string) => void;
+  onCancel: () => void;
+}
+
+export interface CounselingWriteProps {
+  post: CounselingEntry | null;
+  onSave: (data: CounselingCreateData) => void;
+  onCancel: () => void;
+}
+```
+
+#### 3. **생성/수정용 타입**: `[Domain][Action]Data`
+
+```typescript
+// ✅ 올바른 방식
+export interface DiaryCreateData {
+  content: string;
+  emotion: string;
+  images?: File[];
+}
+
+export interface DiaryUpdateData {
+  content: string;
+  emotion: string;
+  images?: File[];
+  removedImageUrls?: string[];
+}
+
+export interface CounselingCreateData {
+  category: string;
+  title: string;
+  content: string;
+  author?: string;
+}
+
+export interface CommentCreateData {
+  content: string;
+  author?: string;
+}
+```
+
+#### 4. **API 타입**: 백엔드와 일치하는 구조
+
+```typescript
+// ✅ 올바른 방식 - 백엔드 DTO와 일치
+export interface DiaryResponse {
+  diaryIdx: number;
+  content: string;
+  createdAt: string;
+  userIdx: number;
+  emotionIdx: number;
+  imageUrls: string[];
+  challenges?: Array<{
+    title: string;
+    status: string;
+  }>;
+}
+
+export interface CreateDiaryRequest {
+  content: string;
+  emotionIdx: number;
+  images?: File[];
+}
+
+export interface UpdateDiaryRequest {
+  content: string;
+  emotionIdx: number;
+  images?: File[];
+  removedImageUrls?: string[];
+}
+```
+
+#### 5. **매퍼 함수**: `mapApi[Type]To[Domain]Entry`
+
+```typescript
+// ✅ 올바른 방식
+export const mapApiDiaryToDiaryEntry = (
+  apiDiary: DiaryResponse
+): DiaryEntry => {
+  // 매핑 로직
+};
+
+export const mapApiChallengeToChallengeEntry = (
+  apiChallenge: ChallengeListResponse
+): ChallengeListEntry => {
+  // 매핑 로직
+};
+
+export const mapApiCounselingToCounselingEntry = (
+  apiCounseling: CounselingResponse
+): CounselingEntry => {
+  // 매핑 로직
+};
+```
+
+#### 6. **파일 구조**
+
+#### 패키지 구조 (현재 구조)
+
+```
+packages/types/
+├── src/
+│   ├── domain/           # 도메인 타입들
+│   │   ├── diary.ts      # DiaryEntry, DiaryWriteProps, DiaryCreateData
+│   │   ├── challenge.ts  # ChallengeEntry, ChallengeJoinProps, ChallengeCreateData
+│   │   ├── counseling.ts # CounselingEntry, CounselingWriteProps, CounselingCreateData
+│   │   └── user.ts       # UserEntry, UserProfileProps
+│   ├── api/              # API 응답 타입들
+│   │   ├── diary.ts      # ApiDiary, DiaryResponse, CreateDiaryRequest
+│   │   ├── challenge.ts  # ApiChallenge, ChallengeResponse, CreateChallengeRequest
+│   │   ├── counseling.ts # ApiCounseling, CounselingResponse, CreateCounselingRequest
+│   │   └── user.ts       # ApiUser, UserResponse
+│   └── index.ts          # 모든 타입 통합 export
+└── dist/                 # 컴파일된 타입 정의 파일들
+
+packages/mappers/
+├── src/
+│   ├── diaryMapper.ts    # mapApiDiaryToDiaryEntry
+│   ├── challengeMapper.ts # mapApiChallengeToChallengeEntry
+│   ├── counselingMapper.ts # mapApiCounselingToCounselingEntry
+│   ├── userMapper.ts     # mapApiUserToUserEntry
+│   └── index.ts          # 모든 매퍼 함수 통합 export
+└── dist/                 # 컴파일된 JavaScript 파일들
+```
+
+### Naming Convention Summary
+
+| 용도             | 패턴                          | 예시                                              |
+| ---------------- | ----------------------------- | ------------------------------------------------- |
+| 도메인 타입      | `[Domain]Entry`               | `DiaryEntry`, `ChallengeEntry`, `CounselingEntry` |
+| 컴포넌트 Props   | `[Domain][Action]Props`       | `DiaryWriteProps`, `ChallengeJoinProps`           |
+| 생성/수정용 타입 | `[Domain][Action]Data`        | `DiaryCreateData`, `CounselingUpdateData`         |
+| API 타입         | 백엔드와 일치                 | `DiaryResponse`, `CreateDiaryRequest`             |
+| 매퍼 함수        | `mapApi[Type]To[Domain]Entry` | `mapApiDiaryToDiaryEntry`                         |
+
+## Utility and Types Usage Guidelines
+
+### 1. 정의된 유틸리티와 타입 우선 활용
+
+- **기존 유틸리티 우선**: 새로운 기능 구현 시 먼저 `utils/` 폴더의 기존 유틸리티 확인
+- **기존 타입 우선**: 새로운 타입 정의 시 먼저 `types/` 폴더의 기존 타입 확인
+- **중복 구현 금지**: 이미 정의된 기능이 있으면 반드시 재사용
+- **에러 처리 통일**: `useErrorHandler` 훅과 `getErrorMessage` 유틸리티 활용
+- **FormData 처리 통일**: `createFormData` 유틸리티 활용
+
+### 2. 유틸리티 사용 우선순위
+
+```typescript
+// ✅ 올바른 방식: 기존 유틸리티 활용
+import {
+  formatDate,
+  validateFileSize,
+  getEmotionDisplayName,
+} from "../../utils";
+
+// ❌ 잘못된 방식: 중복 구현
+const formatDate = (date: Date) => {
+  return date.toLocaleDateString("ko-KR");
+};
+```
+
+### 3. 타입 사용 우선순위
+
+```typescript
+// ✅ 올바른 방식: 패키지에서 타입 import
+import { DiaryEntry, DiaryCreateData } from "@mooddisk/types";
+
+// ✅ 올바른 방식: 기존 타입 활용
+import { DiaryEntry, DiaryCreateData } from "../../types/domain/diary";
+
+// ❌ 잘못된 방식: 중복 타입 정의
+interface Diary {
+  id: string;
+  content: string;
+  // ...
+}
+```
+
+### 4. 패키지 폴더 구조 확인
+
+#### @mooddisk/utils 패키지
+
+```
+packages/utils/
+├── src/
+│   ├── index.ts              # 모든 유틸리티 통합 export
+│   ├── uiUtils.ts            # UI 관련 (날짜, 파일, 스타일링)
+│   ├── emotionUtils.ts       # 감정 관련 (매핑, 변환)
+│   ├── apiUtils.ts           # API 관련 (FormData, 에러 처리)
+│   └── paginationUtils.ts    # 페이지네이션 관련
+└── dist/                     # 컴파일된 JavaScript 파일들
+```
+
+#### @mooddisk/types 패키지
+
+```
+packages/types/
+├── src/
+│   ├── domain/               # 도메인 타입 (DiaryEntry, ChallengeEntry)
+│   ├── api/                  # API 타입 (ApiDiary, ApiChallenge)
+│   └── index.ts              # 모든 타입 통합 export
+└── dist/                     # 컴파일된 타입 정의 파일들
+```
+
+#### @mooddisk/mappers 패키지
+
+```
+packages/mappers/
+├── src/
+│   ├── index.ts              # 모든 매퍼 통합 export
+│   ├── diaryMapper.ts        # 일기 관련 매핑
+│   ├── challengeMapper.ts    # 챌린지 관련 매핑
+│   ├── counselingMapper.ts   # 상담 관련 매핑
+│   └── userMapper.ts         # 사용자 관련 매핑
+└── dist/                     # 컴파일된 JavaScript 파일들
+```
+
+### 7. 새로운 기능 구현 시 체크리스트
+
+1. **패키지 확인**: `@mooddisk/utils`, `@mooddisk/types`, `@mooddisk/mappers` 패키지에서 유사한 기능 검색
+2. **유틸리티 확인**: `packages/utils/` 폴더에서 유사한 기능 검색
+3. **타입 확인**: `packages/types/` 폴더에서 유사한 타입 검색
+4. **매퍼 확인**: `packages/mappers/` 폴더에서 유사한 매핑 로직 검색
+5. **기존 함수 활용**: 이미 있는 함수가 있으면 재사용
+6. **기존 타입 활용**: 이미 있는 타입이 있으면 재사용
+7. **필요시에만 추가**: 정말 새로운 기능일 때만 새로 구현
+
+### 8. 예시: 날짜 포맷팅
+
+```typescript
+// ✅ 올바른 방식: 패키지에서 유틸리티 import
+import {
+  formatDate,
+  formatDateString,
+  formatDateForHeader,
+} from "@mooddisk/utils";
+
+// ✅ 올바른 방식: 기존 유틸리티 활용
+import { formatDate, formatDateString, formatDateForHeader } from "../../utils";
+
+const MyComponent = () => {
+  const today = new Date();
+  const formattedDate = formatDate(today); // "8월 27일, 화요일"
+  const headerDate = formatDateForHeader(today); // "AUG 27.disk"
+
+  return <div>{formattedDate}</div>;
+};
+
+// ❌ 잘못된 방식: 중복 구현
+const MyComponent = () => {
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString("ko-KR"); // 중복 구현
+
+  return <div>{formattedDate}</div>;
+};
+```
+
+### 9. 예시: 감정 처리
+
+```typescript
+// ✅ 올바른 방식: 패키지에서 유틸리티 import
+import { getEmotionDisplayName, emotionMapping } from "@mooddisk/utils";
+
+// ✅ 올바른 방식: 기존 유틸리티 활용
+import { getEmotionDisplayName, emotionMapping } from "../../utils";
+
+const MyComponent = () => {
+  const emotionName = getEmotionDisplayName("HAPPY"); // "행복"
+  const emotionIcon = emotionMapping["HAPPY"]; // "happy"
+
+  return <div>{emotionName}</div>;
+};
+
+// ❌ 잘못된 방식: 중복 구현
+const MyComponent = () => {
+  const emotionMap = {
+    HAPPY: "행복",
+    PROUD: "자랑스러움",
+    // ... 중복 정의
+  };
+
+  return <div>{emotionMap["HAPPY"]}</div>;
+};
+```
+
+### 10. 예시: 에러 처리
+
+```typescript
+// ✅ 올바른 방식: 패키지에서 훅 import
+import { useErrorHandler } from "@mooddisk/hooks";
+
+// ✅ 올바른 방식: 기존 유틸리티 활용
+import { useErrorHandler } from "../../hooks/useErrorHandler";
+
+const MyComponent = () => {
+  const { errorMessage, showErrorModal, handleError, clearError } =
+    useErrorHandler();
+
+  const handleApiCall = async () => {
+    try {
+      await someApiCall();
+    } catch (error) {
+      handleError(error); // 자동으로 에러 메시지 생성 및 모달 표시
+    }
+  };
+
+  return (
+    <div>
+      {/* 에러 모달 */}
+      {showErrorModal && (
+        <ErrorModal message={errorMessage} onClose={clearError} />
+      )}
+    </div>
+  );
+};
+```
+
+### 11. 예시: FormData 처리
+
+```typescript
+// ✅ 올바른 방식: 패키지에서 유틸리티 import
+import { createFormData } from "@mooddisk/utils";
+
+// ✅ 올바른 방식: 기존 유틸리티 활용
+import { createFormData } from "../../utils";
+
+const MyComponent = () => {
+  const handleSubmit = async (data: any, files: File[]) => {
+    const { formData, queryString } = createFormData({
+      ...data,
+      files: { images: files },
+    });
+
+    await apiCall(formData, queryString);
+  };
+};
+```
+
+description:
+globs:
+alwaysApply: false
+
+---
